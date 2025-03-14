@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeftIcon, CheckIcon, ArrowDownTrayIcon, ShareIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, CheckIcon, ArrowDownTrayIcon, ShareIcon, CameraIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/router'
 import useStore from '@/store/useStore'
 
@@ -10,6 +10,7 @@ export default function PreviewResult() {
   
   const [activeTab, setActiveTab] = useState<'original' | 'generated'>('generated')
   const [showShareOptions, setShowShareOptions] = useState(false)
+  const [showParameters, setShowParameters] = useState(false)
   
   // Get store data
   const generatedPortraits = useStore(state => state.generatedPortraits)
@@ -52,12 +53,28 @@ export default function PreviewResult() {
   
   // Handle download (simulated)
   const handleDownload = () => {
-    alert('Download functionality would be implemented here')
+    if (!portrait) return
+    
+    // Create a temporary link element
+    const link = document.createElement('a')
+    link.href = portrait.dataUrl
+    link.download = `${getSceneTitle().toLowerCase()}-portrait.jpg`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
   
   // Handle share (simulated)
   const handleShare = () => {
     setShowShareOptions(!showShareOptions)
+  }
+  
+  // Format parameter value for display
+  const formatParameterValue = (value: number) => {
+    if (value <= 25) return 'Low'
+    if (value <= 50) return 'Medium-Low'
+    if (value <= 75) return 'Medium-High'
+    return 'High'
   }
 
   return (
@@ -82,6 +99,12 @@ export default function PreviewResult() {
           </Link>
           <h1 className="text-xl font-semibold ml-2">Your {getSceneTitle()}</h1>
         </div>
+        <button 
+          onClick={() => setShowParameters(!showParameters)}
+          className="p-2 rounded-full hover:bg-gray-100 text-professional-blue"
+        >
+          <AdjustmentsHorizontalIcon className="h-6 w-6" />
+        </button>
       </header>
 
       {/* Main Content */}
@@ -124,6 +147,31 @@ export default function PreviewResult() {
             </div>
           </div>
         </div>
+        
+        {/* Parameters Panel */}
+        {showParameters && portrait && (
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h3 className="font-medium text-gray-800 mb-3">AI Parameters Used</h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs text-gray-500">Background</p>
+                <p className="text-sm font-medium">{formatParameterValue(portrait.parameters.background)} ({portrait.parameters.background}%)</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Lighting</p>
+                <p className="text-sm font-medium">{formatParameterValue(portrait.parameters.lighting)} ({portrait.parameters.lighting}%)</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Detail</p>
+                <p className="text-sm font-medium">{formatParameterValue(portrait.parameters.detail)} ({portrait.parameters.detail}%)</p>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <p className="text-xs text-gray-500">Scene Type</p>
+              <p className="text-sm font-medium">{getSceneTitle()}</p>
+            </div>
+          </div>
+        )}
 
         {/* Comparison Tabs */}
         <div className="mb-4">
@@ -146,25 +194,39 @@ export default function PreviewResult() {
         {/* Image Display */}
         <div className="flex-1 flex items-center justify-center mb-6">
           <div className="relative w-full max-w-md aspect-w-1 aspect-h-1 rounded-lg overflow-hidden shadow-lg">
-            {activeTab === 'generated' && portrait && (
+            {activeTab === 'generated' && portrait ? (
               <img 
                 src={portrait.dataUrl} 
                 alt="Generated portrait" 
                 className="w-full h-full object-cover"
               />
-            )}
-            
-            {activeTab === 'original' && originalPhoto && (
+            ) : activeTab === 'original' && originalPhoto ? (
               <img 
                 src={originalPhoto.dataUrl} 
                 alt="Original photo" 
                 className="w-full h-full object-cover"
               />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                <CameraIcon className="h-12 w-12 text-gray-400" />
+              </div>
             )}
             
             <div className="absolute bottom-4 left-4 text-white text-sm font-medium px-3 py-1 bg-black bg-opacity-50 rounded-full">
               {activeTab === 'generated' ? getSceneTitle() : 'Original'}
             </div>
+            
+            {portrait && portrait.sizeKB && activeTab === 'generated' && (
+              <div className="absolute top-4 right-4 text-white text-xs font-medium px-2 py-1 bg-black bg-opacity-50 rounded-full">
+                {portrait.sizeKB} KB
+              </div>
+            )}
+            
+            {originalPhoto && originalPhoto.sizeKB && activeTab === 'original' && (
+              <div className="absolute top-4 right-4 text-white text-xs font-medium px-2 py-1 bg-black bg-opacity-50 rounded-full">
+                {originalPhoto.sizeKB} KB
+              </div>
+            )}
           </div>
         </div>
 
