@@ -1,7 +1,8 @@
 import { useCallback, useState, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { CloudArrowUpIcon, PhotoIcon, ExclamationCircleIcon, CheckCircleIcon, FaceSmileIcon } from '@heroicons/react/24/outline'
+import { CloudArrowUpIcon, PhotoIcon, ExclamationCircleIcon, CheckCircleIcon, FaceSmileIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import useImageProcessor from '@/hooks/useImageProcessor'
+import useStore from '@/store/useStore'
 
 interface PhotoUploaderProps {
   onUpload: (file: File, dataUrl: string) => void
@@ -13,8 +14,11 @@ export default function PhotoUploader({ onUpload, maxSizeMB = 10 }: PhotoUploade
   const [error, setError] = useState<string | null>(null)
   const [faceDetected, setFaceDetected] = useState<boolean | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [imageSizeKB, setImageSizeKB] = useState<number | null>(null)
+  const [optimizationStatus, setOptimizationStatus] = useState<'none' | 'optimized' | 'optimizing'>('none')
   
   const { processImage, isProcessing, error: processingError } = useImageProcessor()
+  const quality = useStore(state => state.settings.quality)
 
   // Reset error when preview changes
   useEffect(() => {
@@ -42,6 +46,8 @@ export default function PhotoUploader({ onUpload, maxSizeMB = 10 }: PhotoUploade
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     setError(null)
     setFaceDetected(null)
+    setOptimizationStatus('none')
+    setImageSizeKB(null)
     
     if (acceptedFiles.length === 0) return
     
@@ -55,11 +61,15 @@ export default function PhotoUploader({ onUpload, maxSizeMB = 10 }: PhotoUploade
     }
     
     try {
+      setOptimizationStatus('optimizing')
+      
       // Process the image
-      const processedImage = await processImage(file)
+      const processedImage = await processImage(file, { autoOptimize: true })
       
       if (processedImage) {
         setPreview(processedImage.dataUrl)
+        setImageSizeKB(processedImage.sizeKB)
+        setOptimizationStatus('optimized')
         
         // Detect face in the image
         const hasFace = await detectFace(processedImage.dataUrl)
@@ -71,6 +81,7 @@ export default function PhotoUploader({ onUpload, maxSizeMB = 10 }: PhotoUploade
       }
     } catch (err) {
       setError('Error processing image')
+      setOptimizationStatus('none')
       console.error(err)
     }
   }, [onUpload, processImage, detectFace, maxSizeMB])
@@ -131,6 +142,12 @@ export default function PhotoUploader({ onUpload, maxSizeMB = 10 }: PhotoUploade
                   )}
                 </div>
               )}
+              
+              {optimizationStatus === 'optimized' && (
+                <div className="absolute top-0 left-0 p-1 rounded-full bg-blue-500">
+                  <ArrowPathIcon className="h-5 w-5 text-white" />
+                </div>
+              )}
             </div>
             
             {faceDetected === false && (
@@ -143,6 +160,19 @@ export default function PhotoUploader({ onUpload, maxSizeMB = 10 }: PhotoUploade
             {faceDetected === true && (
               <div className="text-green-600 text-center mb-4">
                 <p className="font-medium">Face detected successfully!</p>
+              </div>
+            )}
+            
+            {imageSizeKB !== null && (
+              <div className="text-gray-600 text-center mb-2">
+                <p className="text-sm">
+                  Image size: {imageSizeKB} KB
+                  {optimizationStatus === 'optimized' && (
+                    <span className="text-professional-blue ml-1">
+                      (Optimized for {quality} quality)
+                    </span>
+                  )}
+                </p>
               </div>
             )}
             
@@ -199,6 +229,7 @@ export default function PhotoUploader({ onUpload, maxSizeMB = 10 }: PhotoUploade
           <li>• Ensure your face is clearly visible and centered</li>
           <li>• Avoid wearing sunglasses or hats</li>
           <li>• Look directly at the camera with a neutral expression</li>
+          <li>• Images are automatically optimized based on your quality settings</li>
         </ul>
       </div>
     </div>

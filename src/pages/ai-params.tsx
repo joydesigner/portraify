@@ -1,21 +1,49 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/router'
+import useStore from '@/store/useStore'
+import ProcessingLoader from '@/components/ProcessingLoader'
 
 export default function AIParams() {
   const router = useRouter()
-  const { scene } = router.query
+  const { scene: sceneFromQuery } = router.query
+  
+  // Get store data
+  const currentPhotoId = useStore(state => state.currentPhotoId)
+  const userPhotos = useStore(state => state.userPhotos)
+  const currentScene = useStore(state => state.currentScene)
+  const setSceneType = useStore(state => state.setSceneType)
+  const addGeneratedPortrait = useStore(state => state.addGeneratedPortrait)
   
   const [background, setBackground] = useState(50)
   const [lighting, setLighting] = useState(50)
   const [detail, setDetail] = useState(50)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [progress, setProgress] = useState(0)
+  
+  // Get the current photo data
+  const currentPhoto = userPhotos.find(photo => photo.id === currentPhotoId)
+  
+  // Redirect if no photo or scene is selected
+  useEffect(() => {
+    if (!currentPhotoId) {
+      router.push('/photo-upload')
+    } else if (!currentScene && !sceneFromQuery) {
+      router.push('/scene-select')
+    } else if (sceneFromQuery && sceneFromQuery !== currentScene) {
+      // If scene from query doesn't match store, update store
+      setSceneType(sceneFromQuery as string)
+    }
+  }, [currentPhotoId, currentScene, sceneFromQuery, router, setSceneType])
+  
+  // The scene to use (from store or query)
+  const sceneToUse = currentScene || (sceneFromQuery as string)
   
   // Set default values based on scene
   useEffect(() => {
-    if (scene) {
-      switch (scene) {
+    if (sceneToUse) {
+      switch (sceneToUse) {
         case 'professional':
           setBackground(70)
           setLighting(60)
@@ -31,26 +59,104 @@ export default function AIParams() {
           setLighting(70)
           setDetail(60)
           break
-        // Add other scenes with their default values
+        case 'academic':
+          setBackground(65)
+          setLighting(55)
+          setDetail(70)
+          break
+        case 'social':
+          setBackground(40)
+          setLighting(75)
+          setDetail(65)
+          break
+        case 'wedding':
+          setBackground(30)
+          setLighting(80)
+          setDetail(90)
+          break
+        case 'student':
+          setBackground(90)
+          setLighting(50)
+          setDetail(40)
+          break
+        case 'virtual':
+          setBackground(20)
+          setLighting(60)
+          setDetail(50)
+          break
         default:
           setBackground(50)
           setLighting(50)
           setDetail(50)
       }
     }
-  }, [scene])
+  }, [sceneToUse])
   
   const handleGenerate = () => {
+    if (!currentPhotoId || !sceneToUse) return
+    
     setIsProcessing(true)
-    // Simulate processing
+    
+    // Simulate processing progress
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        const newProgress = prev + Math.random() * 10
+        return newProgress >= 100 ? 100 : newProgress
+      })
+    }, 200)
+    
+    // Simulate portrait generation
     setTimeout(() => {
-      setIsProcessing(false)
-      router.push('/preview-result')
-    }, 2000)
+      clearInterval(progressInterval)
+      setProgress(100)
+      
+      // Add generated portrait to store
+      const portraitId = addGeneratedPortrait({
+        originalPhotoId: currentPhotoId,
+        scene: sceneToUse,
+        dataUrl: currentPhoto?.dataUrl || '', // In a real app, this would be the generated portrait
+        parameters: {
+          background,
+          lighting,
+          detail
+        }
+      })
+      
+      // Navigate to result page after a short delay
+      setTimeout(() => {
+        setIsProcessing(false)
+        router.push(`/preview-result?portrait=${portraitId}`)
+      }, 500)
+    }, 3000)
+  }
+
+  // Get scene title for display
+  const getSceneTitle = () => {
+    const scene = sceneToUse?.toLowerCase()
+    switch (scene) {
+      case 'professional': return 'Professional'
+      case 'passport': return 'Passport/Visa'
+      case 'business': return 'Business Meeting'
+      case 'academic': return 'Academic'
+      case 'social': return 'Social Media'
+      case 'wedding': return 'Wedding'
+      case 'student': return 'Student/Work ID'
+      case 'virtual': return 'Virtual Background'
+      default: return 'Selected Scene'
+    }
   }
 
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Processing Overlay */}
+      {isProcessing && (
+        <ProcessingLoader 
+          isProcessing={isProcessing} 
+          progress={progress} 
+          text="Generating your portrait..."
+        />
+      )}
+      
       {/* Status Bar */}
       <div className="bg-black text-white p-2 flex justify-between items-center text-xs">
         <div>9:41</div>
@@ -75,28 +181,79 @@ export default function AIParams() {
 
       {/* Main Content */}
       <main className="flex-1 p-4 flex flex-col">
+        {/* Progress Steps */}
         <div className="mb-6">
-          <p className="text-gray-600">
-            Adjust parameters to customize your portrait for {scene || 'selected'} scene.
-          </p>
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 rounded-full bg-professional-blue text-white flex items-center justify-center">
+                <CheckIcon className="h-5 w-5" />
+              </div>
+              <span className="text-xs mt-1 text-professional-blue font-medium">Upload</span>
+            </div>
+            <div className="flex-1 h-1 bg-professional-blue mx-2"></div>
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 rounded-full bg-professional-blue text-white flex items-center justify-center">
+                <CheckIcon className="h-5 w-5" />
+              </div>
+              <span className="text-xs mt-1 text-professional-blue font-medium">Scene</span>
+            </div>
+            <div className="flex-1 h-1 bg-professional-blue mx-2"></div>
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 rounded-full bg-professional-blue text-white flex items-center justify-center">
+                <span className="text-sm font-medium">3</span>
+              </div>
+              <span className="text-xs mt-1 text-professional-blue font-medium">Result</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-4 flex items-center">
+          {currentPhoto && (
+            <div className="w-12 h-12 rounded-full overflow-hidden mr-3 border border-gray-200">
+              <img 
+                src={currentPhoto.dataUrl} 
+                alt="Your photo" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+          <div>
+            <h2 className="text-lg font-medium">Step 3: Adjust Parameters</h2>
+            <p className="text-gray-600 text-sm">
+              Fine-tune your {getSceneTitle()} portrait
+            </p>
+          </div>
         </div>
 
         {/* Preview Canvas */}
-        <div className="mb-6 aspect-w-1 aspect-h-1 bg-gray-200 rounded relative">
-          <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-            <svg className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          {/* WebGL preview would be implemented here */}
+        <div className="mb-6 aspect-w-1 aspect-h-1 bg-gray-100 rounded-lg relative overflow-hidden">
+          {currentPhoto && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <img 
+                src={currentPhoto.dataUrl} 
+                alt="Preview" 
+                className="w-full h-full object-cover opacity-80"
+                style={{
+                  filter: `contrast(${1 + detail/100}) brightness(${1 + lighting/200}) saturate(${1 + background/200})`
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black opacity-20"></div>
+              <div className="absolute bottom-4 left-4 text-white text-sm font-medium px-3 py-1 bg-black bg-opacity-50 rounded-full">
+                {getSceneTitle()} Preview
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Parameter Sliders */}
         <div className="space-y-6 mb-8">
           <div>
-            <label htmlFor="background" className="block text-sm font-medium text-gray-700 mb-1">
-              Background ({background}%)
-            </label>
+            <div className="flex justify-between mb-1">
+              <label htmlFor="background" className="block text-sm font-medium text-gray-700">
+                Background
+              </label>
+              <span className="text-sm text-gray-500">{background}%</span>
+            </div>
             <input
               type="range"
               id="background"
@@ -104,14 +261,21 @@ export default function AIParams() {
               max="100"
               value={background}
               onChange={(e) => setBackground(parseInt(e.target.value))}
-              className="input-field"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
             />
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>Simple</span>
+              <span>Detailed</span>
+            </div>
           </div>
           
           <div>
-            <label htmlFor="lighting" className="block text-sm font-medium text-gray-700 mb-1">
-              Lighting ({lighting}%)
-            </label>
+            <div className="flex justify-between mb-1">
+              <label htmlFor="lighting" className="block text-sm font-medium text-gray-700">
+                Lighting
+              </label>
+              <span className="text-sm text-gray-500">{lighting}%</span>
+            </div>
             <input
               type="range"
               id="lighting"
@@ -119,14 +283,21 @@ export default function AIParams() {
               max="100"
               value={lighting}
               onChange={(e) => setLighting(parseInt(e.target.value))}
-              className="input-field"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
             />
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>Soft</span>
+              <span>Dramatic</span>
+            </div>
           </div>
           
           <div>
-            <label htmlFor="detail" className="block text-sm font-medium text-gray-700 mb-1">
-              Detail Level ({detail}%)
-            </label>
+            <div className="flex justify-between mb-1">
+              <label htmlFor="detail" className="block text-sm font-medium text-gray-700">
+                Detail Level
+              </label>
+              <span className="text-sm text-gray-500">{detail}%</span>
+            </div>
             <input
               type="range"
               id="detail"
@@ -134,17 +305,21 @@ export default function AIParams() {
               max="100"
               value={detail}
               onChange={(e) => setDetail(parseInt(e.target.value))}
-              className="input-field"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
             />
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>Smooth</span>
+              <span>Sharp</span>
+            </div>
           </div>
         </div>
 
         <div className="mt-auto">
           <button
             onClick={handleGenerate}
-            disabled={isProcessing}
-            className={`btn-primary w-full flex items-center justify-center gap-2 ${
-              isProcessing ? 'opacity-50 cursor-not-allowed' : ''
+            disabled={isProcessing || !currentPhotoId || !sceneToUse}
+            className={`btn-primary w-full flex items-center justify-center gap-2 py-3 ${
+              isProcessing || !currentPhotoId || !sceneToUse ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
             {isProcessing ? (
@@ -162,6 +337,10 @@ export default function AIParams() {
               </>
             )}
           </button>
+          
+          <p className="text-xs text-center text-gray-500 mt-3">
+            This will generate a high-quality AI portrait based on your photo and selected parameters.
+          </p>
         </div>
       </main>
     </div>
