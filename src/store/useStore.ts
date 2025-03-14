@@ -70,6 +70,7 @@ interface AppState {
   cleanupStorage: () => void
   getStorageUsage: () => number
   optimizeExistingPhotos: () => Promise<void>
+  clearAllData: () => void
 }
 
 // Generate a random ID
@@ -373,6 +374,16 @@ const useStore = create<AppState>()(
             generatedPortraits: sortedPortraits,
           }
         })
+      },
+      
+      // Clear all user data while preserving settings
+      clearAllData: () => {
+        set((state) => ({
+          userPhotos: [],
+          currentPhotoId: null,
+          currentScene: null,
+          generatedPortraits: []
+        }))
       },
       
       // Calculate total storage usage in KB

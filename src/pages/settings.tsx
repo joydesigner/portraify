@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeftIcon, TrashIcon, CheckIcon, InformationCircleIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, TrashIcon, CheckIcon, InformationCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import useStore from '@/store/useStore'
 
 // Language options
@@ -36,6 +36,7 @@ export default function Settings() {
   const deleteUserPhoto = useStore(state => state.deleteUserPhoto)
   const deleteGeneratedPortrait = useStore(state => state.deleteGeneratedPortrait)
   const getStorageUsage = useStore(state => state.getStorageUsage)
+  const clearAllData = useStore(state => state.clearAllData)
   
   const [maxPhotos, setMaxPhotos] = useState(settings.maxStoredPhotos)
   const [maxPortraits, setMaxPortraits] = useState(settings.maxStoredPortraits)
@@ -44,6 +45,7 @@ export default function Settings() {
   const [saveOriginals, setSaveOriginals] = useState(settings.saveOriginals)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [showOptimizationInfo, setShowOptimizationInfo] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('Settings Saved Successfully!')
   
   // Calculate storage usage
   const [storageUsage, setStorageUsage] = useState('0')
@@ -70,20 +72,21 @@ export default function Settings() {
     setStorageUsage(getStorageUsage().toFixed(2))
     
     // Show success message
+    setSuccessMessage('Settings Saved Successfully!')
     setShowSuccessMessage(true)
     setTimeout(() => setShowSuccessMessage(false), 3000)
   }
   
   const handleClearAllData = () => {
-    if (confirm('Are you sure you want to clear all data? This action cannot be undone.')) {
-      // Clear all photos and portraits
-      userPhotos.forEach(photo => deleteUserPhoto(photo.id))
-      generatedPortraits.forEach(portrait => deleteGeneratedPortrait(portrait.id))
+    if (confirm('Are you sure you want to clear all data? This action cannot be undone. All your photos and portraits will be permanently deleted.')) {
+      // Clear all data using the store function
+      clearAllData()
       
       // Update storage usage
       setStorageUsage(getStorageUsage().toFixed(2))
       
       // Show success message
+      setSuccessMessage('All Data Cleared Successfully!')
       setShowSuccessMessage(true)
       setTimeout(() => setShowSuccessMessage(false), 3000)
     }
@@ -123,7 +126,7 @@ export default function Settings() {
                 <CheckIcon className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <h3 className="font-medium text-green-800">Settings Saved Successfully!</h3>
+                <h3 className="font-medium text-green-800">{successMessage}</h3>
                 <p className="text-sm text-green-600">Your changes have been applied</p>
               </div>
             </div>
@@ -251,13 +254,33 @@ export default function Settings() {
             </ul>
           </div>
           
-          <button
-            onClick={handleClearAllData}
-            className="flex items-center justify-center w-full p-2 mt-4 text-red-600 border border-red-300 rounded hover:bg-red-50"
-          >
-            <TrashIcon className="h-5 w-5 mr-2" />
-            Clear All Data
-          </button>
+          {/* Clear All Data Section */}
+          <div className="mt-8 border-t pt-6">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <ExclamationTriangleIcon className="h-5 w-5 text-red-600" />
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">Danger Zone</h3>
+                  <div className="mt-2 text-sm text-red-700">
+                    <p>Clearing all data will permanently delete all your photos and portraits. This action cannot be undone.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <button
+              onClick={handleClearAllData}
+              className="w-full flex items-center justify-center px-4 py-3 border border-red-300 text-red-700 bg-white hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <TrashIcon className="h-5 w-5 mr-2" />
+              Clear All Data
+            </button>
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              This will delete all your photos and portraits but keep your settings
+            </p>
+          </div>
         </div>
 
         {/* App Settings */}
@@ -287,10 +310,10 @@ export default function Settings() {
         </div>
 
         {/* Save Button */}
-        <div className="mt-auto">
+        <div className="sticky bottom-4 mt-auto">
           <button
             onClick={handleSaveSettings}
-            className="btn-primary w-full flex items-center justify-center gap-2 py-3"
+            className="w-full bg-professional-blue text-white py-3 rounded-lg font-medium shadow-md hover:bg-blue-700 transition-colors"
           >
             Save Settings
           </button>
