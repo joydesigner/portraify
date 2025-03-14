@@ -51,7 +51,7 @@ export const applyAITransformations = async (
   lighting: number, 
   detail: number,
   imageSize: number = 100,
-  aspectRatio: string = '1:1' // Add aspect ratio parameter with default value
+  resolution: string = '1024x1024' // Changed from aspectRatio to resolution
 ): Promise<string> => {
   // Create a canvas to apply transformations
   const img = new Image();
@@ -70,43 +70,31 @@ export const applyAITransformations = async (
     return dataUrl; // Return original if canvas context not available
   }
   
-  // Calculate dimensions based on aspect ratio
-  let width = img.width;
-  let height = img.height;
+  // Parse resolution string to get width and height
+  const [width, height] = resolution.split('x').map(Number);
   
-  switch (aspectRatio) {
-    case '1:1':
-      width = height = Math.min(img.width, img.height);
-      break;
-    case '1:2':
-      width = height * 0.5;
-      break;
-    case '3:2':
-      width = height * 1.5;
-      break;
-    case '3:4':
-      width = height * 0.75;
-      break;
-    case '16:9':
-      width = height * (16/9);
-      break;
-    case '9:16':
-      width = height * (9/16);
-      break;
-  }
-  
-  // Apply image size scaling
-  width *= (imageSize / 100);
-  height *= (imageSize / 100);
-  
-  // Set canvas dimensions
+  // Set canvas dimensions to the specified resolution
   canvas.width = width;
   canvas.height = height;
   
+  // Calculate scaling to fit the image while maintaining aspect ratio
+  const scale = Math.min(
+    width / img.width,
+    height / img.height
+  );
+  
+  // Calculate position to center the image
+  const x = (width - img.width * scale) / 2;
+  const y = (height - img.height * scale) / 2;
+  
   // Draw the image with scaling and centering
-  const x = (width - img.width * (imageSize / 100)) / 2;
-  const y = (height - img.height * (imageSize / 100)) / 2;
-  ctx.drawImage(img, x, y, img.width * (imageSize / 100), img.height * (imageSize / 100));
+  ctx.drawImage(
+    img,
+    x,
+    y,
+    img.width * scale,
+    img.height * scale
+  );
   
   // Apply filters based on parameters
   // This is a simplified simulation - a real AI would do much more

@@ -175,14 +175,14 @@ minimalist ${backgroundType} background in ${corporateColor} tones,
 ${detailLevel} texture details[3](@ref), 
 ultra-realistic skin texture[4](@ref) ${styleText},
 --enable_face_encoder=True --guidance_scale=7.5[3,6](@ref)`,
-      negative_prompt: "blurry, distorted, low quality, deformed face, bad anatomy, disfigured, poorly drawn face, mutation, mutated, extra limbs, ugly, poorly drawn hands, missing limbs, floating limbs, disconnected limbs, out of frame, watermark, signature, text",
+      negative_prompt: "blurry, distorted, low quality, deformed face, bad anatomy, disfigured, poorly drawn face, mutation, mutated, extra limbs, ugly, poorly drawn hands, missing limbs, floating limbs, disconnected limbs, out of frame, watermark, signature, text,(deformed, distorted, disfigured:1.3), (poorly drawn face:1.2), (mutation, mutated, extra limbs:1.4), (bad proportions, unnatural body:1.3), (text, watermark, signature:1.5), (cartoon, anime, 3d, doll:1.3), (blurry, pixelated, low resolution:1.2), (ugly teeth, unnatural eyes:1.4), (strange lighting, overexposed:1.3), (improper attire, casual clothing:1.4), (nudity, NSFW:1.7)",
       image_size: "1024x1024",
       batch_size: 1,
       seed: Math.floor(Math.random() * 9999999999), // Random seed within the valid range
       num_inference_steps: 20,
       guidance_scale: 7.5,
       image: `data:image/jpeg;base64,${request.image}`,
-      enable_face_encoder: true,
+      enable_face_encoder: "True",
       ip_adapter: "faceid_plus"
     };
 

@@ -43,12 +43,11 @@ export default function AIParams() {
   
   // Available aspect ratios
   const aspectRatios = [
-    { id: '1:1', name: 'Square', description: 'Perfect for profile photos' },
-    { id: '1:2', name: 'Portrait', description: 'Tall portrait format' },
-    { id: '3:2', name: 'Landscape', description: 'Wide landscape format' },
-    { id: '3:4', name: 'Vertical', description: 'Tall vertical format' },
-    { id: '16:9', name: 'Widescreen', description: 'Standard widescreen' },
-    { id: '9:16', name: 'Mobile', description: 'Mobile-friendly vertical' },
+    { id: '1024x1024', name: '1024×1024', description: 'High resolution square' },
+    { id: '960x1280', name: '960×1280', description: 'Portrait HD' },
+    { id: '768x1024', name: '768×1024', description: 'Standard portrait' },
+    { id: '720x1440', name: '720×1440', description: 'Tall portrait' },
+    { id: '720x1280', name: '720×1280', description: 'Mobile portrait' },
   ]
   
   // Get the current photo data
@@ -74,39 +73,39 @@ export default function AIParams() {
     if (sceneToUse) {
       switch (sceneToUse) {
         case 'professional':
-          setSelectedAspectRatio('1:1')
+          setSelectedAspectRatio('1024x1024')
           setSelectedStyle('professional')
           break
         case 'passport':
-          setSelectedAspectRatio('1:1')
+          setSelectedAspectRatio('1024x1024')
           setSelectedStyle('natural')
           break
         case 'business':
-          setSelectedAspectRatio('1:1')
+          setSelectedAspectRatio('1024x1024')
           setSelectedStyle('professional')
           break
         case 'academic':
-          setSelectedAspectRatio('1:1')
+          setSelectedAspectRatio('1024x1024')
           setSelectedStyle('natural')
           break
         case 'social':
-          setSelectedAspectRatio('1:1')
+          setSelectedAspectRatio('1024x1024')
           setSelectedStyle('artistic')
           break
         case 'wedding':
-          setSelectedAspectRatio('3:2')
+          setSelectedAspectRatio('960x1280')
           setSelectedStyle('dramatic')
           break
         case 'student':
-          setSelectedAspectRatio('1:1')
+          setSelectedAspectRatio('1024x1024')
           setSelectedStyle('natural')
           break
         case 'virtual':
-          setSelectedAspectRatio('16:9')
+          setSelectedAspectRatio('720x1280')
           setSelectedStyle('artistic')
           break
         default:
-          setSelectedAspectRatio('1:1')
+          setSelectedAspectRatio('1024x1024')
           setSelectedStyle('natural')
       }
     }
