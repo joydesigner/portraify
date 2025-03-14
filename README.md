@@ -47,6 +47,7 @@ graph TD
 - 国际化：react-i18next
 - UI库：HeadlessUI + @heroicons/react
 - 样式方案：Tailwind CSS 3.3+（配置viewport自适应）
+- 快速验证集成： Replicate API
 
 ## Getting Started
 
@@ -110,6 +111,66 @@ portraify/
 - **Subscription Plans**: Choose from Free, Pro, and Unlimited plans
 - **History**: View and manage your generated portraits
 - **Settings**: Customize language, quality, theme, and other preferences
+
+# Portraify × Kolors 集成方案（需求文档附录）
+
+## 技术架构设计
+```mermaid
+graph TD
+    A[用户上传] --> B[前端预处理]
+    B --> C{Kolors服务网关}
+    C -->|证件类场景| D[FaceID+ControlNet]
+    C -->|创意类场景| E[IP-Adapter+自由参数]
+    D --> F[Sharp.js规格处理]
+    E --> G[WebGL预览层]
+    F --> H[结果交付]
+    G --> H
+```
+
+## 集成模型清单
+以下是需要集成的模型清单， 以逗号","隔开分别表示为： 场景类型,推荐模型,部署方式,性能指标
+SiliconFlow Kolors Model
+
+## AI integration
+SiliconFlow's Kolors Model
+
+## SiliconFlow Kolors 集成
+
+Portraify 现已集成 SiliconFlow 的 Kolors AI 模型，提供更高质量的肖像生成能力。
+
+### 配置 SiliconFlow API
+
+1. 注册 SiliconFlow 账户并获取 API 密钥：
+   - 访问 [SiliconFlow 官网](https://siliconflow.com) 注册账户
+   - 在控制台中创建 API 密钥
+
+2. 配置环境变量：
+   - 复制 `.env.example` 文件并重命名为 `.env.local`
+   - 将你的 API 密钥填入 `NEXT_PUBLIC_KOLORS_API_KEY` 变量
+
+```bash
+# .env.local 示例
+NEXT_PUBLIC_KOLORS_API_KEY=your_kolors_api_key_here
+```
+
+### 使用 Kolors 生成肖像
+
+1. 在 AI 参数页面，启用 "SiliconFlow Kolors AI" 选项
+2. 选择适合你场景的风格：
+   - 自然风格：保持自然外观的肖像
+   - 专业风格：适合商务和职业场合
+   - 艺术风格：增强色彩和艺术效果
+   - 戏剧风格：强烈的光影对比
+3. 调整背景、光照和细节参数
+4. 点击 "Generate with Kolors AI" 按钮生成肖像
+
+### Kolors API 特性
+
+- 高质量肖像生成
+- 多种风格选择
+- 更自然的光影效果
+- 更精细的细节处理
+- 更好的背景融合
 
 ## License
 

@@ -4,6 +4,7 @@
  */
 
 import { estimateDataUrlSize } from '@/utils/imageUtils';
+import { generateKolorsPortrait, KolorsPortraitRequest, KolorsPortraitResponse } from './kolorsAPI';
 
 // Types for AI portrait generation
 export interface AIPortraitParams {
@@ -12,12 +13,15 @@ export interface AIPortraitParams {
   background: number;
   lighting: number;
   detail: number;
+  useKolors?: boolean; // Flag to use Kolors API
+  style?: string; // Optional style parameter for Kolors
 }
 
 export interface AIPortraitResult {
   portraitDataUrl: string;
   processingTime: number;
   sizeKB: number;
+  kolorsId?: string; // ID from Kolors API if used
 }
 
 // Mock AI processing delay (simulates API call)
@@ -272,6 +276,20 @@ const addGridOverlay = (
 };
 
 /**
+ * Convert dataURL to base64 string (removing the prefix)
+ */
+const dataURLToBase64 = (dataURL: string): string => {
+  return dataURL.split(',')[1];
+};
+
+/**
+ * Convert base64 to dataURL
+ */
+const base64ToDataURL = (base64: string, mimeType = 'image/jpeg'): string => {
+  return `data:${mimeType};base64,${base64}`;
+};
+
+/**
  * Generate AI portrait
  */
 export const generateAIPortrait = async (
@@ -280,6 +298,53 @@ export const generateAIPortrait = async (
 ): Promise<AIPortraitResult> => {
   const startTime = Date.now();
   
+  // Check if we should use Kolors API
+  if (params.useKolors) {
+    try {
+      // Prepare request for Kolors API
+      const kolorsRequest: KolorsPortraitRequest = {
+        image: dataURLToBase64(params.photoDataUrl),
+        scene: params.scene,
+        parameters: {
+          background: params.background,
+          lighting: params.lighting,
+          detail: params.detail,
+          style: params.style
+        }
+      };
+      
+      // Call Kolors API
+      const kolorsResponse = await generateKolorsPortrait(kolorsRequest, onProgress);
+      
+      // Check if the request was successful
+      if (kolorsResponse.status === 'completed' && kolorsResponse.result) {
+        // Calculate processing time
+        const processingTime = (Date.now() - startTime) / 1000;
+        
+        // Convert base64 to data URL
+        const portraitDataUrl = base64ToDataURL(kolorsResponse.result.image);
+        
+        // Get size from response or estimate
+        const sizeKB = kolorsResponse.result.metadata.size || estimateDataUrlSize(portraitDataUrl);
+        
+        return {
+          portraitDataUrl,
+          processingTime,
+          sizeKB,
+          kolorsId: kolorsResponse.id
+        };
+      } else {
+        // If Kolors API failed, fall back to local processing
+        console.warn('Kolors API failed, falling back to local processing:', kolorsResponse.error);
+        onProgress(0); // Reset progress
+      }
+    } catch (error) {
+      console.error('Error using Kolors API:', error);
+      onProgress(0); // Reset progress
+    }
+  }
+  
+  // If not using Kolors or if Kolors failed, use local processing
   // Simulate AI processing time
   await mockAIProcessingDelay(onProgress);
   

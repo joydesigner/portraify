@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, InformationCircleIcon, EyeIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, InformationCircleIcon, EyeIcon, SparklesIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/router'
 import useStore from '@/store/useStore'
 import ProcessingLoader from '@/components/ProcessingLoader'
@@ -28,6 +28,16 @@ export default function AIParams() {
   const [showTips, setShowTips] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [isPreviewLoading, setIsPreviewLoading] = useState(false)
+  const [useKolors, setUseKolors] = useState(true) // Default to using Kolors
+  const [selectedStyle, setSelectedStyle] = useState<string | undefined>(undefined)
+  
+  // Available Kolors styles
+  const kolorsStyles = [
+    { id: 'natural', name: '自然风格', description: '保持自然外观的肖像' },
+    { id: 'professional', name: '专业风格', description: '适合商务和职业场合' },
+    { id: 'artistic', name: '艺术风格', description: '增强色彩和艺术效果' },
+    { id: 'dramatic', name: '戏剧风格', description: '强烈的光影对比' },
+  ]
   
   // Get the current photo data
   const currentPhoto = userPhotos.find(photo => photo.id === currentPhotoId)
@@ -55,46 +65,55 @@ export default function AIParams() {
           setBackground(70)
           setLighting(60)
           setDetail(80)
+          setSelectedStyle('professional')
           break
         case 'passport':
           setBackground(100)
           setLighting(50)
           setDetail(40)
+          setSelectedStyle('natural')
           break
         case 'business':
           setBackground(60)
           setLighting(70)
           setDetail(60)
+          setSelectedStyle('professional')
           break
         case 'academic':
           setBackground(65)
           setLighting(55)
           setDetail(70)
+          setSelectedStyle('natural')
           break
         case 'social':
           setBackground(40)
           setLighting(75)
           setDetail(65)
+          setSelectedStyle('artistic')
           break
         case 'wedding':
           setBackground(30)
           setLighting(80)
           setDetail(90)
+          setSelectedStyle('dramatic')
           break
         case 'student':
           setBackground(90)
           setLighting(50)
           setDetail(40)
+          setSelectedStyle('natural')
           break
         case 'virtual':
           setBackground(20)
           setLighting(60)
           setDetail(50)
+          setSelectedStyle('artistic')
           break
         default:
           setBackground(50)
           setLighting(50)
           setDetail(50)
+          setSelectedStyle('natural')
       }
     }
   }, [sceneToUse])
@@ -142,7 +161,9 @@ export default function AIParams() {
         scene: sceneToUse,
         background,
         lighting,
-        detail
+        detail,
+        useKolors, // Pass the flag to use Kolors API
+        style: selectedStyle // Pass the selected style
       })
       
       if (result) {
@@ -156,8 +177,11 @@ export default function AIParams() {
           parameters: {
             background,
             lighting,
-            detail
-          }
+            detail,
+            useKolors,
+            style: selectedStyle
+          },
+          kolorsId: result.kolorsId // Store the Kolors ID if available
         })
         
         // Navigate to result page after a short delay
@@ -383,6 +407,53 @@ export default function AIParams() {
           )}
         </div>
 
+        {/* SiliconFlow Kolors Option */}
+        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center">
+              <SparklesIcon className="h-5 w-5 text-blue-500 mr-2" />
+              <h3 className="font-medium text-blue-800">SiliconFlow Kolors AI</h3>
+            </div>
+            <label className="inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={useKolors} 
+                onChange={() => setUseKolors(!useKolors)} 
+                className="sr-only peer"
+              />
+              <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+          
+          <p className="text-sm text-blue-700 mb-3">
+            使用SiliconFlow的Kolors AI模型生成更高质量的专业肖像。
+          </p>
+          
+          {useKolors && (
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-blue-800 mb-2">
+                选择风格
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {kolorsStyles.map(style => (
+                  <div 
+                    key={style.id}
+                    onClick={() => setSelectedStyle(style.id)}
+                    className={`p-3 rounded-lg cursor-pointer border transition-all ${
+                      selectedStyle === style.id 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-200 hover:border-blue-300'
+                    }`}
+                  >
+                    <div className="font-medium text-sm">{style.name}</div>
+                    <div className="text-xs text-gray-500 mt-1">{style.description}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Parameter Sliders */}
         <div className="space-y-6 mb-8">
           <div>
@@ -516,8 +587,17 @@ export default function AIParams() {
               </>
             ) : (
               <>
-                Generate Portrait
-                <ArrowRightIcon className="h-5 w-5" />
+                {useKolors ? (
+                  <>
+                    <SparklesIcon className="h-5 w-5" />
+                    Generate with Kolors AI
+                  </>
+                ) : (
+                  <>
+                    Generate Portrait
+                    <ArrowRightIcon className="h-5 w-5" />
+                  </>
+                )}
               </>
             )}
           </button>

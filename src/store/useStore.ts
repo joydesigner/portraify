@@ -22,9 +22,12 @@ interface GeneratedPortrait {
     background: number
     lighting: number
     detail: number
+    useKolors?: boolean
+    style?: string
   }
   createdAt: number
   sizeKB?: number
+  kolorsId?: string // ID from Kolors API if used
 }
 
 interface AppState {
