@@ -158,7 +158,8 @@ export default function AIParams() {
         lighting: 50,   // Default value
         detail: 50,     // Default value
         useKolors, // Pass the flag to use Kolors API
-        style: selectedStyle // Pass the selected style
+        style: selectedStyle, // Pass the selected style
+        resolution: selectedAspectRatio // Pass the selected resolution
       })
       
       if (result) {
@@ -174,7 +175,8 @@ export default function AIParams() {
             lighting: 50,   // Default value
             detail: 50,     // Default value
             useKolors,
-            style: selectedStyle
+            style: selectedStyle,
+            resolution: selectedAspectRatio // Store the selected resolution
           },
           kolorsId: result.kolorsId // Store the Kolors ID if available
         })

@@ -15,6 +15,7 @@ export interface AIPortraitParams {
   detail: number;
   useKolors?: boolean; // Flag to use Kolors API
   style?: string; // Optional style parameter for Kolors
+  resolution?: string; // Optional resolution parameter
 }
 
 export interface AIPortraitResult {
@@ -51,7 +52,7 @@ export const applyAITransformations = async (
   lighting: number, 
   detail: number,
   imageSize: number = 100,
-  resolution: string = '1024x1024' // Changed from aspectRatio to resolution
+  resolution: string = '1024x1024'
 ): Promise<string> => {
   // Create a canvas to apply transformations
   const img = new Image();
@@ -67,7 +68,7 @@ export const applyAITransformations = async (
   const ctx = canvas.getContext('2d');
   
   if (!ctx) {
-    return dataUrl; // Return original if canvas context not available
+    return dataUrl;
   }
   
   // Parse resolution string to get width and height
@@ -96,54 +97,67 @@ export const applyAITransformations = async (
     img.height * scale
   );
   
-  // Apply filters based on parameters
-  // This is a simplified simulation - a real AI would do much more
-  
-  // Apply background effect (simulated)
-  const backgroundEffect = background / 100;
-  ctx.globalAlpha = 0.3;
-  ctx.fillStyle = getSceneBackgroundColor(scene);
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.globalAlpha = 1.0;
-  
-  // Apply lighting effect (simulated)
-  const lightingEffect = lighting / 100;
+  // Apply subtle enhancements based on scene
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
   
+  // Apply subtle skin smoothing
   for (let i = 0; i < data.length; i += 4) {
-    // Adjust brightness based on lighting
-    data[i] = Math.min(255, data[i] * (1 + (lightingEffect - 0.5) * 0.5));
-    data[i + 1] = Math.min(255, data[i + 1] * (1 + (lightingEffect - 0.5) * 0.5));
-    data[i + 2] = Math.min(255, data[i + 2] * (1 + (lightingEffect - 0.5) * 0.5));
+    // Get surrounding pixels (simple 3x3 kernel)
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    
+    // Calculate luminance
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    
+    // Apply subtle skin smoothing
+    if (luminance > 0.3 && luminance < 0.9) {
+      // Reduce noise in skin tones
+      data[i] = Math.round(r * 0.95 + (r + g + b) / 3 * 0.05);
+      data[i + 1] = Math.round(g * 0.95 + (r + g + b) / 3 * 0.05);
+      data[i + 2] = Math.round(b * 0.95 + (r + g + b) / 3 * 0.05);
+    }
+  }
+  
+  // Apply subtle lighting enhancement
+  const lightingEffect = lighting / 100;
+  for (let i = 0; i < data.length; i += 4) {
+    // Enhance highlights and shadows
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    
+    // Apply subtle contrast enhancement
+    const contrast = 1 + (lightingEffect - 0.5) * 0.1;
+    data[i] = Math.min(255, Math.max(0, (r - 128) * contrast + 128));
+    data[i + 1] = Math.min(255, Math.max(0, (g - 128) * contrast + 128));
+    data[i + 2] = Math.min(255, Math.max(0, (b - 128) * contrast + 128));
+  }
+  
+  // Apply subtle detail enhancement
+  if (detail > 50) {
+    const detailEffect = (detail - 50) / 50;
+    for (let i = 0; i < data.length; i += 4) {
+      // Enhance edge contrast
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      
+      // Apply subtle sharpening
+      data[i] = Math.min(255, Math.max(0, r + (r - (r + g + b) / 3) * detailEffect));
+      data[i + 1] = Math.min(255, Math.max(0, g + (g - (r + g + b) / 3) * detailEffect));
+      data[i + 2] = Math.min(255, Math.max(0, b + (b - (r + g + b) / 3) * detailEffect));
+    }
   }
   
   ctx.putImageData(imageData, 0, 0);
   
-  // Apply detail effect (simulated)
-  // In a real app, this would use more sophisticated image processing
-  if (detail > 70) {
-    // Simulate sharpening by adding contrast
-    const detailEffect = detail / 100;
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-    
-    for (let i = 0; i < data.length; i += 4) {
-      // Simple contrast adjustment
-      for (let j = 0; j < 3; j++) {
-        const value = data[i + j];
-        data[i + j] = Math.min(255, Math.max(0, 128 + (value - 128) * (1 + (detailEffect - 0.5))));
-      }
-    }
-    
-    ctx.putImageData(imageData, 0, 0);
-  }
-  
-  // Add scene-specific overlays or effects
+  // Apply scene-specific effects
   applySceneSpecificEffects(ctx, canvas.width, canvas.height, scene);
   
-  // Return the processed image
-  return canvas.toDataURL('image/jpeg', 0.9);
+  // Return the processed image with high quality
+  return canvas.toDataURL('image/jpeg', 1.0);
 };
 
 /**
@@ -183,37 +197,37 @@ const applySceneSpecificEffects = (
 ): void => {
   switch (scene.toLowerCase()) {
     case 'professional':
-      // Add subtle vignette
-      addVignette(ctx, width, height, 0.1);
+      // Add very subtle vignette
+      addVignette(ctx, width, height, 0.05);
       break;
     case 'passport':
       // Add white border
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 10;
+      ctx.lineWidth = 5;
       ctx.strokeRect(0, 0, width, height);
       break;
     case 'business':
-      // Add subtle blue tint
-      addColorTint(ctx, width, height, 'rgba(0, 0, 100, 0.05)');
+      // Add very subtle blue tint
+      addColorTint(ctx, width, height, 'rgba(0, 0, 100, 0.02)');
       break;
     case 'academic':
-      // Add subtle warm tint
-      addColorTint(ctx, width, height, 'rgba(100, 50, 0, 0.05)');
+      // Add very subtle warm tint
+      addColorTint(ctx, width, height, 'rgba(100, 50, 0, 0.02)');
       break;
     case 'social':
-      // Add vibrant color boost
-      addColorTint(ctx, width, height, 'rgba(50, 0, 100, 0.05)');
+      // Add very subtle color boost
+      addColorTint(ctx, width, height, 'rgba(50, 0, 100, 0.02)');
       break;
     case 'wedding':
-      // Add soft glow
+      // Add very subtle glow
       addGlow(ctx, width, height);
       break;
     case 'student':
-      // Add clean, bright look
-      addColorTint(ctx, width, height, 'rgba(0, 50, 100, 0.05)');
+      // Add very subtle blue tint
+      addColorTint(ctx, width, height, 'rgba(0, 50, 100, 0.02)');
       break;
     case 'virtual':
-      // Add tech-like overlay
+      // Add very subtle grid
       addGridOverlay(ctx, width, height);
       break;
   }
@@ -330,7 +344,8 @@ export const generateAIPortrait = async (
           background: params.background,
           lighting: params.lighting,
           detail: params.detail,
-          style: params.style
+          style: params.style,
+          resolution: params.resolution
         }
       };
       
@@ -375,7 +390,9 @@ export const generateAIPortrait = async (
     params.scene,
     params.background,
     params.lighting,
-    params.detail
+    params.detail,
+    100, // Default image size
+    params.resolution || '1024x1024' // Use provided resolution or default
   );
   
   // Calculate processing time

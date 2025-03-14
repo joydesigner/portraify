@@ -16,6 +16,7 @@ export interface KolorsPortraitRequest {
     lighting: number; // 0-100
     detail: number; // 0-100
     style?: string; // Optional style parameter
+    resolution?: string; // Optional resolution parameter
   };
 }
 
@@ -95,6 +96,9 @@ export const generateKolorsPortrait = async (
     const detailLevel = request.parameters.detail > 75 ? 'highly detailed' : 
                        request.parameters.detail > 50 ? 'detailed' : 'smooth';
     
+    // Get resolution from parameters or use default
+    const resolution = request.parameters.resolution || '1024x1024';
+    
     // Determine background type and color based on scene
     const getBackgroundType = (scene: string): string => {
       switch (scene.toLowerCase()) {
@@ -168,22 +172,30 @@ export const generateKolorsPortrait = async (
     const requestBody = {
       model: "Kwai-Kolors/Kolors",
       prompt: `Professional ${mapSceneType(request.scene)} headshot of a real person, 
-strictly maintain original facial features[3,5,7](@ref), 
-${lightingQuality} studio lighting with soft shadows, 
+strictly maintain original facial features and skin texture[3,5,7](@ref), 
 ${professionalAttire} attire in neutral colors[1,6](@ref), 
-minimalist ${backgroundType} background in ${corporateColor} tones,
-${detailLevel} texture details[3](@ref), 
-ultra-realistic skin texture[4](@ref) ${styleText},
+natural lighting and skin tone[4](@ref), 
+${backgroundQuality} ${backgroundType} background in ${corporateColor} tones[2](@ref), 
+${lightingQuality} lighting with ${detailLevel} features[3](@ref) ${styleText},
 --enable_face_encoder=True --guidance_scale=7.5[3,6](@ref)`,
-      negative_prompt: "blurry, distorted, low quality, deformed face, bad anatomy, disfigured, poorly drawn face, mutation, mutated, extra limbs, ugly, poorly drawn hands, missing limbs, floating limbs, disconnected limbs, out of frame, watermark, signature, text,(deformed, distorted, disfigured:1.3), (poorly drawn face:1.2), (mutation, mutated, extra limbs:1.4), (bad proportions, unnatural body:1.3), (text, watermark, signature:1.5), (cartoon, anime, 3d, doll:1.3), (blurry, pixelated, low resolution:1.2), (ugly teeth, unnatural eyes:1.4), (strange lighting, overexposed:1.3), (improper attire, casual clothing:1.4), (nudity, NSFW:1.7)",
-      image_size: "1024x1024",
+      negative_prompt: "blurry, distorted, low quality, deformed face, bad anatomy, disfigured, poorly drawn face, mutation, mutated, extra limbs, ugly, poorly drawn hands, missing limbs, floating limbs, out of frame, watermark, signature, text, (deformed, distorted, disfigured:1.3), (poorly drawn face:1.2), (mutation, mutated, extra limbs:1.4), (bad proportions, unnatural body:1.3), (text, watermark, signature:1.5), (cartoon, anime, 3d, doll:1.3), (blurry, pixelated, low resolution:1.2), (ugly teeth, unnatural eyes:1.4), (strange lighting, overexposed:1.3), (improper attire, casual clothing:1.4), (nudity, NSFW:1.7), (artificial, fake looking:1.4), (oversaturated colors:1.3), (unnatural skin texture:1.4), (plastic looking:1.3), (overprocessed:1.4)",
+      image_size: resolution,
       batch_size: 1,
-      seed: Math.floor(Math.random() * 9999999999), // Random seed within the valid range
-      num_inference_steps: 20,
+      seed: Math.floor(Math.random() * 9999999999),
+      num_inference_steps: 30,
       guidance_scale: 7.5,
       image: `data:image/jpeg;base64,${request.image}`,
-      enable_face_encoder: "True",
-      ip_adapter: "faceid_plus"
+      enable_face_encoder: true,
+      ip_adapter: "faceid_plus",
+      scheduler: "DPM++ 2M Karras",
+      clip_skip: 2,
+      vae: "stabilityai/sd-vae-ft-mse",
+      lora_weights: "0.7",
+      lora_scale: "0.7",
+      high_res_fix: "True",
+      high_res_fix_scale: "1.5",
+      high_res_fix_steps: 20,
+      high_res_fix_denoising_strength: "0.7"
     };
 
     console.log("Sending request to SiliconFlow API:", JSON.stringify(requestBody, null, 2));

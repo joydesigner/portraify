@@ -24,6 +24,7 @@ interface GeneratedPortrait {
     detail: number
     useKolors?: boolean
     style?: string
+    resolution?: string
   }
   createdAt: number
   sizeKB?: number
