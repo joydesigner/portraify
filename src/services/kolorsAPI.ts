@@ -4,7 +4,7 @@
  */
 
 // API configuration
-const KOLORS_API_ENDPOINT = 'https://api.siliconflow.com/kolors/v1';
+const KOLORS_API_ENDPOINT = 'https://api.siliconflow.cn/v1/images/generations';
 const KOLORS_API_KEY = process.env.NEXT_PUBLIC_KOLORS_API_KEY || '';
 
 // Types for Kolors API
@@ -55,23 +55,23 @@ const base64ToDataURL = (base64: string, mimeType = 'image/jpeg'): string => {
 const mapSceneType = (scene: string): string => {
   switch (scene.toLowerCase()) {
     case 'professional':
-      return 'professional_portrait';
+      return 'professional portrait';
     case 'passport':
-      return 'id_photo';
+      return 'id photo';
     case 'business':
-      return 'business_portrait';
+      return 'business portrait';
     case 'academic':
-      return 'academic_portrait';
+      return 'academic portrait';
     case 'social':
-      return 'social_media';
+      return 'social media portrait';
     case 'wedding':
-      return 'wedding_portrait';
+      return 'wedding portrait';
     case 'student':
-      return 'student_id';
+      return 'student id photo';
     case 'virtual':
-      return 'virtual_meeting';
+      return 'virtual meeting portrait';
     default:
-      return 'professional_portrait';
+      return 'professional portrait';
   }
 };
 
@@ -86,15 +86,110 @@ export const generateKolorsPortrait = async (
     // Start progress at 0%
     if (onProgress) onProgress(0);
 
-    // Prepare request body
+    // Create a prompt based on the scene and parameters
+    const styleText = request.parameters.style ? `in ${request.parameters.style} style` : '';
+    const backgroundQuality = request.parameters.background > 75 ? 'high-quality' : 
+                             request.parameters.background > 50 ? 'medium-quality' : 'simple';
+    const lightingQuality = request.parameters.lighting > 75 ? 'dramatic' : 
+                           request.parameters.lighting > 50 ? 'professional' : 'soft';
+    const detailLevel = request.parameters.detail > 75 ? 'highly detailed' : 
+                       request.parameters.detail > 50 ? 'detailed' : 'smooth';
+    
+    // Determine background type and color based on scene
+    const getBackgroundType = (scene: string): string => {
+      switch (scene.toLowerCase()) {
+        case 'professional':
+        case 'business':
+          return 'gradient';
+        case 'passport':
+        case 'student':
+          return 'solid';
+        case 'academic':
+          return 'textured';
+        case 'social':
+          return 'blurred';
+        case 'wedding':
+          return 'elegant';
+        case 'virtual':
+          return 'digital';
+        default:
+          return 'neutral';
+      }
+    };
+    
+    const getCorporateColor = (scene: string): string => {
+      switch (scene.toLowerCase()) {
+        case 'professional':
+          return 'blue-gray';
+        case 'business':
+          return 'navy';
+        case 'passport':
+        case 'student':
+          return 'white';
+        case 'academic':
+          return 'maroon';
+        case 'social':
+          return 'vibrant';
+        case 'wedding':
+          return 'cream';
+        case 'virtual':
+          return 'teal';
+        default:
+          return 'neutral';
+      }
+    };
+    
+    const getProfessionalAttire = (scene: string): string => {
+      switch (scene.toLowerCase()) {
+        case 'professional':
+        case 'business':
+          return 'formal business';
+        case 'passport':
+        case 'student':
+          return 'neat casual';
+        case 'academic':
+          return 'academic';
+        case 'social':
+          return 'smart casual';
+        case 'wedding':
+          return 'formal';
+        case 'virtual':
+          return 'business casual';
+        default:
+          return 'professional';
+      }
+    };
+    
+    const backgroundType = getBackgroundType(request.scene);
+    const corporateColor = getCorporateColor(request.scene);
+    const professionalAttire = getProfessionalAttire(request.scene);
+
+    // Prepare request body according to SiliconFlow API format
     const requestBody = {
-      image: request.image,
-      scene: mapSceneType(request.scene),
-      parameters: request.parameters
+      model: "Kwai-Kolors/Kolors",
+      prompt: `Professional ${mapSceneType(request.scene)} headshot of a real person, 
+strictly maintain original facial features[3,5,7](@ref), 
+${lightingQuality} studio lighting with soft shadows, 
+${professionalAttire} attire in neutral colors[1,6](@ref), 
+minimalist ${backgroundType} background in ${corporateColor} tones,
+${detailLevel} texture details[3](@ref), 
+ultra-realistic skin texture[4](@ref) ${styleText},
+--enable_face_encoder=True --guidance_scale=7.5[3,6](@ref)`,
+      negative_prompt: "blurry, distorted, low quality, deformed face, bad anatomy, disfigured, poorly drawn face, mutation, mutated, extra limbs, ugly, poorly drawn hands, missing limbs, floating limbs, disconnected limbs, out of frame, watermark, signature, text",
+      image_size: "1024x1024",
+      batch_size: 1,
+      seed: Math.floor(Math.random() * 9999999999), // Random seed within the valid range
+      num_inference_steps: 20,
+      guidance_scale: 7.5,
+      image: `data:image/jpeg;base64,${request.image}`,
+      enable_face_encoder: true,
+      ip_adapter: "faceid_plus"
     };
 
+    console.log("Sending request to SiliconFlow API:", JSON.stringify(requestBody, null, 2));
+
     // Make API request
-    const response = await fetch(`${KOLORS_API_ENDPOINT}/portraits`, {
+    const response = await fetch(KOLORS_API_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -106,96 +201,147 @@ export const generateKolorsPortrait = async (
     // Update progress to 50%
     if (onProgress) onProgress(50);
 
+    // Check if response is OK
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to generate portrait');
+      let errorMessage = `API error: ${response.status} ${response.statusText}`;
+      
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error?.message || errorData.message || errorMessage;
+      } catch (parseError) {
+        // If we can't parse the error as JSON, try to get the text
+        try {
+          const errorText = await response.text();
+          errorMessage = `API error: ${errorText}`;
+        } catch (textError) {
+          // If we can't get the text either, use the status
+          console.error("Failed to parse error response:", textError);
+        }
+      }
+      
+      throw new Error(errorMessage);
     }
 
-    // Get portrait ID from response
-    const { id } = await response.json();
-
-    // Poll for result
-    return await pollForResult(id, onProgress);
+    // Safely parse the response
+    let responseData;
+    try {
+      const responseText = await response.text();
+      console.log("Raw API response:", responseText.substring(0, 200) + "...");
+      
+      // Try to parse as JSON
+      responseData = JSON.parse(responseText);
+      
+      // Log the response for debugging
+      console.log("Parsed API response:", JSON.stringify(responseData, null, 2));
+      
+      // Check if we have images in the response
+      if (!responseData.images || !responseData.images.length) {
+        throw new Error("No images returned in the API response");
+      }
+      
+      // Get the image URL from the response
+      const imageUrl = responseData.images[0].url;
+      
+      if (!imageUrl) {
+        throw new Error("No image URL in the API response");
+      }
+      
+      // Fetch the image from the URL
+      const imageResponse = await fetch(imageUrl);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image from URL: ${imageResponse.status} ${imageResponse.statusText}`);
+      }
+      
+      // Convert the image to a blob and then to base64
+      const blob = await imageResponse.blob();
+      const base64Image = await blobToBase64(blob);
+      
+      // Update progress to 90%
+      if (onProgress) onProgress(90);
+      
+      // Return a successful response
+      return {
+        id: responseData.seed?.toString() || generateRandomId(),
+        status: 'completed',
+        result: {
+          image: base64Image,
+          metadata: {
+            processingTime: responseData.timings?.inference || 2.5,
+            size: Math.round(blob.size / 1024) // Size in KB
+          }
+        }
+      };
+    } catch (parseError: any) {
+      console.error("Error processing API response:", parseError);
+      throw new Error(`Failed to process API response: ${parseError.message}`);
+    }
   } catch (error) {
     console.error('Error generating portrait with Kolors API:', error);
     return {
-      id: '',
+      id: generateRandomId(),
       status: 'failed',
       error: {
         code: 'api_error',
         message: error instanceof Error ? error.message : 'Unknown error'
       }
     };
+  } finally {
+    // Ensure progress reaches 100%
+    if (onProgress) onProgress(100);
   }
 };
 
 /**
+ * Convert a Blob to a base64 string
+ */
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      // Extract the base64 part (remove the data URL prefix)
+      const base64 = base64String.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
+
+/**
+ * Generate a random ID for tracking
+ */
+const generateRandomId = (): string => {
+  return Math.random().toString(36).substring(2, 15);
+};
+
+/**
+ * Estimate the size of a base64 string in kilobytes
+ */
+const estimateBase64Size = (base64: string): number => {
+  // Base64 represents 6 bits with 8 bits (4 base64 chars = 3 bytes)
+  const sizeInBytes = (base64.length * 3) / 4;
+  return Math.round(sizeInBytes / 1024); // Convert to KB
+};
+
+/**
  * Poll for portrait generation result
+ * Note: This is a simplified version since SiliconFlow API returns results immediately
  */
 const pollForResult = async (
   portraitId: string,
   onProgress?: (percent: number) => void
 ): Promise<KolorsPortraitResponse> => {
-  let attempts = 0;
-  const maxAttempts = 30; // Maximum polling attempts
-  const pollInterval = 1000; // Polling interval in milliseconds
-
-  while (attempts < maxAttempts) {
-    try {
-      const response = await fetch(`${KOLORS_API_ENDPOINT}/portraits/${portraitId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${KOLORS_API_KEY}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to check portrait status');
-      }
-
-      const result: KolorsPortraitResponse = await response.json();
-
-      // If processing is complete, return the result
-      if (result.status === 'completed') {
-        if (onProgress) onProgress(100);
-        return result;
-      }
-
-      // If processing failed, throw an error
-      if (result.status === 'failed') {
-        throw new Error(result.error?.message || 'Portrait generation failed');
-      }
-
-      // Update progress (50% to 95%)
-      if (onProgress) {
-        const progressPercent = 50 + Math.min(45, (attempts / maxAttempts) * 45);
-        onProgress(progressPercent);
-      }
-
-      // Wait before polling again
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
-      attempts++;
-    } catch (error) {
-      console.error('Error polling for portrait result:', error);
-      return {
-        id: portraitId,
-        status: 'failed',
-        error: {
-          code: 'polling_error',
-          message: error instanceof Error ? error.message : 'Failed to retrieve portrait'
-        }
-      };
-    }
-  }
-
-  // If we've reached the maximum number of attempts, return a timeout error
+  // Since we're using the synchronous API, we don't need to poll
+  // This is just a placeholder for compatibility
+  if (onProgress) onProgress(100);
+  
   return {
     id: portraitId,
-    status: 'failed',
+    status: 'completed',
     error: {
-      code: 'timeout',
-      message: 'Portrait generation timed out'
+      code: 'not_implemented',
+      message: 'Polling not implemented for synchronous API'
     }
   };
 }; 
