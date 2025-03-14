@@ -21,9 +21,11 @@ export default function AIParams() {
   // AI portrait generation
   const { generatePortrait, isGenerating, progress, error: generationError } = useAIPortrait()
   
-  const [background, setBackground] = useState(50)
-  const [lighting, setLighting] = useState(50)
-  const [detail, setDetail] = useState(50)
+  // const [background, setBackground] = useState(50)
+  // const [lighting, setLighting] = useState(50)
+  // const [detail, setDetail] = useState(50)
+  // const [imageSize, setImageSize] = useState(100) // Default to 100%
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState('1:1') // Default to square
   const [processingTime, setProcessingTime] = useState<number | null>(null)
   const [showTips, setShowTips] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
@@ -33,10 +35,20 @@ export default function AIParams() {
   
   // Available Kolors styles
   const kolorsStyles = [
-    { id: 'natural', name: '自然风格', description: '保持自然外观的肖像' },
-    { id: 'professional', name: '专业风格', description: '适合商务和职业场合' },
-    { id: 'artistic', name: '艺术风格', description: '增强色彩和艺术效果' },
-    { id: 'dramatic', name: '戏剧风格', description: '强烈的光影对比' },
+    { id: 'natural', name: 'Natual Style', description: 'Keep the natural appearance of the portrait' },
+    { id: 'professional', name: 'Professional Style', description: 'Suitable for business and professional occasions' },
+    { id: 'artistic', name: 'Artistic Style', description: 'Enhance color and artistic effects' },
+    { id: 'dramatic', name: 'Dramatic Style', description: 'Strong contrast of light and shadow' },
+  ]
+  
+  // Available aspect ratios
+  const aspectRatios = [
+    { id: '1:1', name: 'Square', description: 'Perfect for profile photos' },
+    { id: '1:2', name: 'Portrait', description: 'Tall portrait format' },
+    { id: '3:2', name: 'Landscape', description: 'Wide landscape format' },
+    { id: '3:4', name: 'Vertical', description: 'Tall vertical format' },
+    { id: '16:9', name: 'Widescreen', description: 'Standard widescreen' },
+    { id: '9:16', name: 'Mobile', description: 'Mobile-friendly vertical' },
   ]
   
   // Get the current photo data
@@ -62,57 +74,39 @@ export default function AIParams() {
     if (sceneToUse) {
       switch (sceneToUse) {
         case 'professional':
-          setBackground(70)
-          setLighting(60)
-          setDetail(80)
+          setSelectedAspectRatio('1:1')
           setSelectedStyle('professional')
           break
         case 'passport':
-          setBackground(100)
-          setLighting(50)
-          setDetail(40)
+          setSelectedAspectRatio('1:1')
           setSelectedStyle('natural')
           break
         case 'business':
-          setBackground(60)
-          setLighting(70)
-          setDetail(60)
+          setSelectedAspectRatio('1:1')
           setSelectedStyle('professional')
           break
         case 'academic':
-          setBackground(65)
-          setLighting(55)
-          setDetail(70)
+          setSelectedAspectRatio('1:1')
           setSelectedStyle('natural')
           break
         case 'social':
-          setBackground(40)
-          setLighting(75)
-          setDetail(65)
+          setSelectedAspectRatio('1:1')
           setSelectedStyle('artistic')
           break
         case 'wedding':
-          setBackground(30)
-          setLighting(80)
-          setDetail(90)
+          setSelectedAspectRatio('3:2')
           setSelectedStyle('dramatic')
           break
         case 'student':
-          setBackground(90)
-          setLighting(50)
-          setDetail(40)
+          setSelectedAspectRatio('1:1')
           setSelectedStyle('natural')
           break
         case 'virtual':
-          setBackground(20)
-          setLighting(60)
-          setDetail(50)
+          setSelectedAspectRatio('16:9')
           setSelectedStyle('artistic')
           break
         default:
-          setBackground(50)
-          setLighting(50)
-          setDetail(50)
+          setSelectedAspectRatio('1:1')
           setSelectedStyle('natural')
       }
     }
@@ -129,9 +123,11 @@ export default function AIParams() {
       const previewDataUrl = await applyAITransformations(
         currentPhoto.dataUrl,
         sceneToUse,
-        background,
-        lighting,
-        detail
+        50, // Default background value
+        50, // Default lighting value
+        50, // Default detail value
+        100, // Default image size
+        selectedAspectRatio // Pass the selected aspect ratio
       )
       
       setPreviewImage(previewDataUrl)
@@ -140,7 +136,7 @@ export default function AIParams() {
     } finally {
       setIsPreviewLoading(false)
     }
-  }, [currentPhoto, sceneToUse, background, lighting, detail])
+  }, [currentPhoto, sceneToUse, selectedAspectRatio])
   
   // Debounce the preview generation to avoid too many updates
   useEffect(() => {
@@ -149,7 +145,7 @@ export default function AIParams() {
     }, 300) // 300ms debounce
     
     return () => clearTimeout(timer)
-  }, [background, lighting, detail, generatePreview])
+  }, [selectedAspectRatio, generatePreview])
   
   const handleGenerate = async () => {
     if (!currentPhotoId || !sceneToUse || !currentPhoto) return
@@ -159,9 +155,9 @@ export default function AIParams() {
       const result = await generatePortrait({
         photoDataUrl: currentPhoto.dataUrl,
         scene: sceneToUse,
-        background,
-        lighting,
-        detail,
+        background: 50, // Default value
+        lighting: 50,   // Default value
+        detail: 50,     // Default value
         useKolors, // Pass the flag to use Kolors API
         style: selectedStyle // Pass the selected style
       })
@@ -175,9 +171,9 @@ export default function AIParams() {
           scene: sceneToUse,
           dataUrl: result.portraitDataUrl,
           parameters: {
-            background,
-            lighting,
-            detail,
+            background: 50, // Default value
+            lighting: 50,   // Default value
+            detail: 50,     // Default value
             useKolors,
             style: selectedStyle
           },
@@ -216,57 +212,39 @@ export default function AIParams() {
     switch (scene) {
       case 'professional':
         return {
-          background: 'Higher values create a more formal office background',
-          lighting: 'Medium values provide professional studio lighting',
-          detail: 'Higher values enhance facial features and clothing details'
+          aspectRatio: 'Choose a square format for professional headshots'
         }
       case 'passport':
         return {
-          background: 'Maximum value ensures a plain white background required for official documents',
-          lighting: 'Medium values provide even lighting with no shadows',
-          detail: 'Lower values create a smoother appearance that meets requirements'
+          aspectRatio: 'Use square format for passport photos'
         }
       case 'business':
         return {
-          background: 'Higher values create a corporate office environment',
-          lighting: 'Higher values create dramatic lighting for impact',
-          detail: 'Medium values balance natural appearance with professionalism'
+          aspectRatio: 'Square format works best for business profiles'
         }
       case 'academic':
         return {
-          background: 'Higher values create a scholarly environment',
-          lighting: 'Medium values provide balanced, natural lighting',
-          detail: 'Higher values enhance academic attire and facial features'
+          aspectRatio: 'Square format is ideal for academic records'
         }
       case 'social':
         return {
-          background: 'Lower values create trendy, blurred backgrounds',
-          lighting: 'Higher values create vibrant, eye-catching lighting',
-          detail: 'Higher values enhance features for social media appeal'
+          aspectRatio: 'Square format is perfect for social media profiles'
         }
       case 'wedding':
         return {
-          background: 'Lower values create soft, romantic backgrounds',
-          lighting: 'Higher values create warm, glowing lighting',
-          detail: 'Maximum values capture all the special details'
+          aspectRatio: 'Widescreen format is great for wedding photos'
         }
       case 'student':
         return {
-          background: 'Higher values create a plain, compliant background',
-          lighting: 'Medium values provide even, shadow-free lighting',
-          detail: 'Lower values create a standard ID photo appearance'
+          aspectRatio: 'Square format is required for student IDs'
         }
       case 'virtual':
         return {
-          background: 'Lower values create tech-themed backgrounds',
-          lighting: 'Medium values provide balanced screen-friendly lighting',
-          detail: 'Medium values ensure clarity on video calls'
+          aspectRatio: 'Widescreen format works best for virtual backgrounds'
         }
       default:
         return {
-          background: 'Adjust to change background appearance',
-          lighting: 'Adjust to change lighting effects',
-          detail: 'Adjust to change detail level'
+          aspectRatio: 'Choose the aspect ratio that best fits your needs'
         }
     }
   }
@@ -319,9 +297,7 @@ export default function AIParams() {
           <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <h3 className="font-medium text-blue-800 mb-2">Tips for {getSceneTitle()} Portrait</h3>
             <ul className="text-sm text-blue-700 space-y-2">
-              <li><strong>Background:</strong> {tips.background}</li>
-              <li><strong>Lighting:</strong> {tips.lighting}</li>
-              <li><strong>Detail:</strong> {tips.detail}</li>
+              <li><strong>Aspect Ratio:</strong> {tips.aspectRatio}</li>
             </ul>
           </div>
         )}
@@ -394,10 +370,7 @@ export default function AIParams() {
               <img 
                 src={currentPhoto.dataUrl} 
                 alt="Preview" 
-                className="w-full h-full object-cover opacity-80"
-                style={{
-                  filter: `contrast(${1 + detail/100}) brightness(${1 + lighting/200}) saturate(${1 + background/200})`
-                }}
+                className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black opacity-20"></div>
               <div className="absolute bottom-4 left-4 text-white text-sm font-medium px-3 py-1 bg-black bg-opacity-50 rounded-full">
@@ -412,7 +385,7 @@ export default function AIParams() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center">
               <SparklesIcon className="h-5 w-5 text-blue-500 mr-2" />
-              <h3 className="font-medium text-blue-800">SiliconFlow Kolors AI</h3>
+              <h3 className="font-medium text-blue-800">Generate with AI</h3>
             </div>
             <label className="inline-flex items-center cursor-pointer">
               <input 
@@ -425,14 +398,10 @@ export default function AIParams() {
             </label>
           </div>
           
-          <p className="text-sm text-blue-700 mb-3">
-            使用SiliconFlow的Kolors AI模型生成更高质量的专业肖像。
-          </p>
-          
           {useKolors && (
             <div className="mt-3">
               <label className="block text-sm font-medium text-blue-800 mb-2">
-                选择风格
+                Select Style
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {kolorsStyles.map(style => (
@@ -457,68 +426,30 @@ export default function AIParams() {
         {/* Parameter Sliders */}
         <div className="space-y-6 mb-8">
           <div>
-            <div className="flex justify-between mb-1">
-              <label htmlFor="background" className="block text-sm font-medium text-gray-700">
-                Background
-              </label>
-              <span className="text-sm text-gray-500">{background}%</span>
-            </div>
-            <input
-              type="range"
-              id="background"
-              min="0"
-              max="100"
-              value={background}
-              onChange={(e) => setBackground(parseInt(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-            />
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>Simple</span>
-              <span>Detailed</span>
-            </div>
-          </div>
-          
-          <div>
-            <div className="flex justify-between mb-1">
-              <label htmlFor="lighting" className="block text-sm font-medium text-gray-700">
-                Lighting
-              </label>
-              <span className="text-sm text-gray-500">{lighting}%</span>
-            </div>
-            <input
-              type="range"
-              id="lighting"
-              min="0"
-              max="100"
-              value={lighting}
-              onChange={(e) => setLighting(parseInt(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-            />
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>Soft</span>
-              <span>Dramatic</span>
-            </div>
-          </div>
-          
-          <div>
-            <div className="flex justify-between mb-1">
-              <label htmlFor="detail" className="block text-sm font-medium text-gray-700">
-                Detail Level
-              </label>
-              <span className="text-sm text-gray-500">{detail}%</span>
-            </div>
-            <input
-              type="range"
-              id="detail"
-              min="0"
-              max="100"
-              value={detail}
-              onChange={(e) => setDetail(parseInt(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-            />
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>Smooth</span>
-              <span>Sharp</span>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Image Size
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              {aspectRatios.map(ratio => (
+                <div 
+                  key={ratio.id}
+                  onClick={() => setSelectedAspectRatio(ratio.id)}
+                  className={`relative p-4 rounded-xl cursor-pointer border-2 transition-all duration-200 ${
+                    selectedAspectRatio === ratio.id 
+                      ? 'border-blue-500 bg-blue-50 shadow-md' 
+                      : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-medium text-sm text-gray-900">{ratio.name}</div>
+                    {selectedAspectRatio === ratio.id && (
+                      <CheckIcon className="h-5 w-5 text-blue-500" />
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500">{ratio.description}</div>
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-transparent to-gray-50 opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -590,7 +521,7 @@ export default function AIParams() {
                 {useKolors ? (
                   <>
                     <SparklesIcon className="h-5 w-5" />
-                    Generate with Kolors AI
+                    Generate with AI
                   </>
                 ) : (
                   <>

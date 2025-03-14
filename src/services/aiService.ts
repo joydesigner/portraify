@@ -49,7 +49,9 @@ export const applyAITransformations = async (
   scene: string, 
   background: number, 
   lighting: number, 
-  detail: number
+  detail: number,
+  imageSize: number = 100,
+  aspectRatio: string = '1:1' // Add aspect ratio parameter with default value
 ): Promise<string> => {
   // Create a canvas to apply transformations
   const img = new Image();
@@ -68,12 +70,43 @@ export const applyAITransformations = async (
     return dataUrl; // Return original if canvas context not available
   }
   
-  // Set canvas dimensions
-  canvas.width = img.width;
-  canvas.height = img.height;
+  // Calculate dimensions based on aspect ratio
+  let width = img.width;
+  let height = img.height;
   
-  // Draw the image
-  ctx.drawImage(img, 0, 0);
+  switch (aspectRatio) {
+    case '1:1':
+      width = height = Math.min(img.width, img.height);
+      break;
+    case '1:2':
+      width = height * 0.5;
+      break;
+    case '3:2':
+      width = height * 1.5;
+      break;
+    case '3:4':
+      width = height * 0.75;
+      break;
+    case '16:9':
+      width = height * (16/9);
+      break;
+    case '9:16':
+      width = height * (9/16);
+      break;
+  }
+  
+  // Apply image size scaling
+  width *= (imageSize / 100);
+  height *= (imageSize / 100);
+  
+  // Set canvas dimensions
+  canvas.width = width;
+  canvas.height = height;
+  
+  // Draw the image with scaling and centering
+  const x = (width - img.width * (imageSize / 100)) / 2;
+  const y = (height - img.height * (imageSize / 100)) / 2;
+  ctx.drawImage(img, x, y, img.width * (imageSize / 100), img.height * (imageSize / 100));
   
   // Apply filters based on parameters
   // This is a simplified simulation - a real AI would do much more
