@@ -1,36 +1,20 @@
 import Link from 'next/link'
-import { ArrowRightIcon, CameraIcon, SparklesIcon, AdjustmentsHorizontalIcon, DocumentCheckIcon, CogIcon } from '@heroicons/react/24/outline'
+import { ArrowRightIcon, CameraIcon, SparklesIcon, AdjustmentsHorizontalIcon, DocumentCheckIcon, CogIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { useState, useEffect } from 'react'
 import useStore from '@/store/useStore'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'upload' | 'features'>('upload')
   const [storageUsage, setStorageUsage] = useState<string | null>(null)
-  
-  // Calculate storage usage
-  const calculateStorageUsage = () => {
-    try {
-      // Get the size of the localStorage
-      let total = 0
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (key) {
-          const value = localStorage.getItem(key) || ''
-          total += key.length + value.length
-        }
-      }
-      
-      // Convert to KB
-      return (total / 1024).toFixed(2)
-    } catch (e) {
-      console.error('Error calculating storage:', e)
-      return '0'
-    }
-  }
+  const getStorageUsage = useStore(state => state.getStorageUsage)
+  const userPhotos = useStore(state => state.userPhotos)
+  const generatedPortraits = useStore(state => state.generatedPortraits)
   
   useEffect(() => {
-    setStorageUsage(calculateStorageUsage())
-  }, [])
+    // Get storage usage from the store
+    const usage = getStorageUsage()
+    setStorageUsage(usage.toFixed(2))
+  }, [userPhotos, generatedPortraits, getStorageUsage])
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -78,14 +62,31 @@ export default function Home() {
               <div className="card p-4 mb-6 border-l-4 border-amber-500 bg-amber-50">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-amber-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
+                    <ExclamationTriangleIcon className="h-5 w-5 text-amber-400" />
                   </div>
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-amber-800">Storage Warning</h3>
                     <div className="mt-1 text-sm text-amber-700">
                       <p>Your storage is almost full ({storageUsage} KB used). Visit <Link href="/settings" className="font-medium underline">Settings</Link> to manage storage.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {parseFloat(storageUsage || '0') > 0 && parseFloat(storageUsage || '0') <= 4000 && (
+              <div className="card p-4 mb-6 bg-gray-50">
+                <div className="flex">
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-gray-700">Storage Usage</h3>
+                    <div className="mt-1 text-sm text-gray-600">
+                      <p>Current storage: {storageUsage} KB</p>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                        <div 
+                          className="bg-professional-blue h-1.5 rounded-full" 
+                          style={{ width: `${Math.min(100, (parseFloat(storageUsage || '0') / 5000) * 100)}%` }}
+                        ></div>
+                      </div>
                     </div>
                   </div>
                 </div>

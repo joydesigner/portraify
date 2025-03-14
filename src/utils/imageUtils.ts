@@ -2,6 +2,11 @@
  * Utility functions for image processing and optimization
  */
 
+interface ImageOptimizationOptions {
+  quality?: number;
+  maxWidth?: number;
+}
+
 /**
  * Compresses an image data URL by reducing its quality and dimensions
  * @param dataUrl The original image data URL
@@ -75,9 +80,13 @@ export const estimateDataUrlSize = (dataUrl: string): number => {
 /**
  * Automatically optimizes an image data URL based on its size
  * @param dataUrl The original image data URL
+ * @param options Optional configuration for optimization
  * @returns A promise that resolves to the optimized data URL
  */
-export const autoOptimizeImage = async (dataUrl: string): Promise<string> => {
+export const autoOptimizeImage = async (
+  dataUrl: string,
+  options?: ImageOptimizationOptions
+): Promise<string> => {
   const sizeKB = estimateDataUrlSize(dataUrl);
   
   // If the image is already small, don't compress it further
@@ -95,6 +104,12 @@ export const autoOptimizeImage = async (dataUrl: string): Promise<string> => {
   } else if (sizeKB > 500) {
     quality = 0.6;
     maxWidth = 700;
+  }
+  
+  // Override with provided options
+  if (options) {
+    if (options.quality !== undefined) quality = options.quality;
+    if (options.maxWidth !== undefined) maxWidth = options.maxWidth;
   }
   
   return compressImageDataUrl(dataUrl, quality, maxWidth);

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { compressToUTF16, decompressFromUTF16 } from 'lz-string'
+import { autoOptimizeImage, estimateDataUrlSize } from '@/utils/imageUtils'
 
 interface UserPhoto {
   id: string
@@ -8,6 +9,8 @@ interface UserPhoto {
   width: number
   height: number
   createdAt: number
+  sizeKB?: number
+  originalDataUrl?: string // Store original if saveOriginals is true
 }
 
 interface GeneratedPortrait {
@@ -21,6 +24,7 @@ interface GeneratedPortrait {
     detail: number
   }
   createdAt: number
+  sizeKB?: number
 }
 
 interface AppState {
@@ -61,6 +65,8 @@ interface AppState {
   
   // Storage management
   cleanupStorage: () => void
+  getStorageUsage: () => number
+  optimizeExistingPhotos: () => Promise<void>
 }
 
 // Generate a random ID
@@ -122,6 +128,19 @@ const compressedStorage = {
   }
 }
 
+// Get quality settings based on quality level
+const getQualitySettings = (quality: 'low' | 'medium' | 'high') => {
+  switch (quality) {
+    case 'low':
+      return { quality: 0.5, maxWidth: 600 }
+    case 'high':
+      return { quality: 0.9, maxWidth: 1200 }
+    case 'medium':
+    default:
+      return { quality: 0.7, maxWidth: 800 }
+  }
+}
+
 // Create the store
 const useStore = create<AppState>()(
   persist(
@@ -131,31 +150,86 @@ const useStore = create<AppState>()(
       currentPhotoId: null,
       addUserPhoto: (photo) => {
         const id = generateId()
-        set((state) => {
-          // Get current photos and add the new one
-          const newPhotos = [
-            ...state.userPhotos,
-            {
-              ...photo,
-              id,
-              createdAt: Date.now(),
-            },
-          ]
-          
-          // Limit the number of stored photos
-          const maxPhotos = state.settings.maxStoredPhotos
-          const sortedPhotos = newPhotos
-            .sort((a, b) => b.createdAt - a.createdAt)
-            .slice(0, maxPhotos)
-          
-          return {
-            userPhotos: sortedPhotos,
-            currentPhotoId: id,
-          }
-        })
         
-        // Clean up storage if needed
-        setTimeout(() => get().cleanupStorage(), 100)
+        // Process the photo based on quality settings
+        const processPhoto = async () => {
+          const { quality } = get().settings
+          const qualitySettings = getQualitySettings(quality)
+          const saveOriginals = get().settings.saveOriginals
+          
+          // Store original if saveOriginals is true
+          const originalDataUrl = saveOriginals ? photo.dataUrl : undefined
+          
+          // Optimize the photo
+          try {
+            const optimizedDataUrl = await autoOptimizeImage(
+              photo.dataUrl, 
+              { quality: qualitySettings.quality, maxWidth: qualitySettings.maxWidth }
+            )
+            
+            // Estimate size
+            const sizeKB = estimateDataUrlSize(optimizedDataUrl)
+            
+            set((state) => {
+              // Get current photos and add the new one
+              const newPhotos = [
+                ...state.userPhotos,
+                {
+                  ...photo,
+                  dataUrl: optimizedDataUrl,
+                  id,
+                  createdAt: Date.now(),
+                  sizeKB,
+                  originalDataUrl
+                },
+              ]
+              
+              // Limit the number of stored photos
+              const maxPhotos = state.settings.maxStoredPhotos
+              const sortedPhotos = newPhotos
+                .sort((a, b) => b.createdAt - a.createdAt)
+                .slice(0, maxPhotos)
+              
+              return {
+                userPhotos: sortedPhotos,
+                currentPhotoId: id,
+              }
+            })
+          } catch (error) {
+            console.error('Error optimizing photo:', error)
+            
+            // Fallback to original if optimization fails
+            set((state) => {
+              const sizeKB = estimateDataUrlSize(photo.dataUrl)
+              const newPhotos = [
+                ...state.userPhotos,
+                {
+                  ...photo,
+                  id,
+                  createdAt: Date.now(),
+                  sizeKB,
+                  originalDataUrl: saveOriginals ? photo.dataUrl : undefined
+                },
+              ]
+              
+              const maxPhotos = state.settings.maxStoredPhotos
+              const sortedPhotos = newPhotos
+                .sort((a, b) => b.createdAt - a.createdAt)
+                .slice(0, maxPhotos)
+              
+              return {
+                userPhotos: sortedPhotos,
+                currentPhotoId: id,
+              }
+            })
+          }
+          
+          // Clean up storage if needed
+          setTimeout(() => get().cleanupStorage(), 100)
+        }
+        
+        // Start processing
+        processPhoto()
         
         return id
       },
@@ -173,30 +247,66 @@ const useStore = create<AppState>()(
       generatedPortraits: [],
       addGeneratedPortrait: (portrait) => {
         const id = generateId()
-        set((state) => {
-          // Get current portraits and add the new one
-          const newPortraits = [
-            ...state.generatedPortraits,
-            {
-              ...portrait,
-              id,
-              createdAt: Date.now(),
-            },
-          ]
-          
-          // Limit the number of stored portraits
-          const maxPortraits = state.settings.maxStoredPortraits
-          const sortedPortraits = newPortraits
-            .sort((a, b) => b.createdAt - a.createdAt)
-            .slice(0, maxPortraits)
-          
-          return {
-            generatedPortraits: sortedPortraits,
-          }
-        })
         
-        // Clean up storage if needed
-        setTimeout(() => get().cleanupStorage(), 100)
+        // Process the portrait
+        const processPortrait = async () => {
+          try {
+            // Estimate size
+            const sizeKB = estimateDataUrlSize(portrait.dataUrl)
+            
+            set((state) => {
+              // Get current portraits and add the new one
+              const newPortraits = [
+                ...state.generatedPortraits,
+                {
+                  ...portrait,
+                  id,
+                  createdAt: Date.now(),
+                  sizeKB
+                },
+              ]
+              
+              // Limit the number of stored portraits
+              const maxPortraits = state.settings.maxStoredPortraits
+              const sortedPortraits = newPortraits
+                .sort((a, b) => b.createdAt - a.createdAt)
+                .slice(0, maxPortraits)
+              
+              return {
+                generatedPortraits: sortedPortraits,
+              }
+            })
+          } catch (error) {
+            console.error('Error processing portrait:', error)
+            
+            // Fallback if processing fails
+            set((state) => {
+              const newPortraits = [
+                ...state.generatedPortraits,
+                {
+                  ...portrait,
+                  id,
+                  createdAt: Date.now(),
+                },
+              ]
+              
+              const maxPortraits = state.settings.maxStoredPortraits
+              const sortedPortraits = newPortraits
+                .sort((a, b) => b.createdAt - a.createdAt)
+                .slice(0, maxPortraits)
+              
+              return {
+                generatedPortraits: sortedPortraits,
+              }
+            })
+          }
+          
+          // Clean up storage if needed
+          setTimeout(() => get().cleanupStorage(), 100)
+        }
+        
+        // Start processing
+        processPortrait()
         
         return id
       },
@@ -214,12 +324,19 @@ const useStore = create<AppState>()(
         maxStoredPhotos: 10,
         maxStoredPortraits: 20,
       },
-      updateSettings: (newSettings) => set((state) => ({
-        settings: {
-          ...state.settings,
-          ...newSettings,
-        },
-      })),
+      updateSettings: (newSettings) => {
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            ...newSettings,
+          },
+        }))
+        
+        // If quality settings changed, optimize existing photos
+        if (newSettings.quality) {
+          setTimeout(() => get().optimizeExistingPhotos(), 100)
+        }
+      },
       
       // Subscription
       subscription: {
@@ -254,6 +371,83 @@ const useStore = create<AppState>()(
           }
         })
       },
+      
+      // Calculate total storage usage in KB
+      getStorageUsage: () => {
+        const state = get()
+        let totalSize = 0
+        
+        // Add size of user photos
+        state.userPhotos.forEach(photo => {
+          if (photo.sizeKB) {
+            totalSize += photo.sizeKB
+          } else {
+            totalSize += estimateDataUrlSize(photo.dataUrl)
+          }
+          
+          // Add size of original photos if saved
+          if (photo.originalDataUrl) {
+            totalSize += estimateDataUrlSize(photo.originalDataUrl)
+          }
+        })
+        
+        // Add size of generated portraits
+        state.generatedPortraits.forEach(portrait => {
+          if (portrait.sizeKB) {
+            totalSize += portrait.sizeKB
+          } else {
+            totalSize += estimateDataUrlSize(portrait.dataUrl)
+          }
+        })
+        
+        return totalSize
+      },
+      
+      // Optimize existing photos based on current quality settings
+      optimizeExistingPhotos: async () => {
+        const state = get()
+        const { quality, saveOriginals } = state.settings
+        const qualitySettings = getQualitySettings(quality)
+        
+        // Only optimize if we have photos
+        if (state.userPhotos.length === 0) return
+        
+        // Process each photo
+        const optimizedPhotos = await Promise.all(
+          state.userPhotos.map(async (photo) => {
+            // Skip if no original to optimize from
+            if (!photo.originalDataUrl && !saveOriginals) {
+              return photo
+            }
+            
+            try {
+              // Use original if available, otherwise use current
+              const sourceDataUrl = photo.originalDataUrl || photo.dataUrl
+              
+              // Optimize the photo
+              const optimizedDataUrl = await autoOptimizeImage(
+                sourceDataUrl,
+                { quality: qualitySettings.quality, maxWidth: qualitySettings.maxWidth }
+              )
+              
+              // Estimate size
+              const sizeKB = estimateDataUrlSize(optimizedDataUrl)
+              
+              return {
+                ...photo,
+                dataUrl: optimizedDataUrl,
+                sizeKB
+              }
+            } catch (error) {
+              console.error('Error optimizing existing photo:', error)
+              return photo
+            }
+          })
+        )
+        
+        // Update the store with optimized photos
+        set({ userPhotos: optimizedPhotos })
+      }
     }),
     {
       name: 'portraify-storage',

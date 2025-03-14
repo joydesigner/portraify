@@ -35,6 +35,7 @@ export default function Settings() {
   const cleanupStorage = useStore(state => state.cleanupStorage)
   const deleteUserPhoto = useStore(state => state.deleteUserPhoto)
   const deleteGeneratedPortrait = useStore(state => state.deleteGeneratedPortrait)
+  const getStorageUsage = useStore(state => state.getStorageUsage)
   
   const [maxPhotos, setMaxPhotos] = useState(settings.maxStoredPhotos)
   const [maxPortraits, setMaxPortraits] = useState(settings.maxStoredPortraits)
@@ -45,31 +46,13 @@ export default function Settings() {
   const [showOptimizationInfo, setShowOptimizationInfo] = useState(false)
   
   // Calculate storage usage
-  const calculateStorageUsage = () => {
-    try {
-      // Get the size of the localStorage
-      let total = 0
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (key) {
-          const value = localStorage.getItem(key) || ''
-          total += key.length + value.length
-        }
-      }
-      
-      // Convert to KB
-      return (total / 1024).toFixed(2)
-    } catch (e) {
-      console.error('Error calculating storage:', e)
-      return '0'
-    }
-  }
-  
   const [storageUsage, setStorageUsage] = useState('0')
   
   useEffect(() => {
-    setStorageUsage(calculateStorageUsage())
-  }, [userPhotos, generatedPortraits])
+    // Get storage usage from the store
+    const usage = getStorageUsage()
+    setStorageUsage(usage.toFixed(2))
+  }, [userPhotos, generatedPortraits, getStorageUsage])
   
   const handleSaveSettings = () => {
     updateSettings({
@@ -84,7 +67,7 @@ export default function Settings() {
     cleanupStorage()
     
     // Update storage usage
-    setStorageUsage(calculateStorageUsage())
+    setStorageUsage(getStorageUsage().toFixed(2))
     
     // Show success message
     setShowSuccessMessage(true)
@@ -98,7 +81,7 @@ export default function Settings() {
       generatedPortraits.forEach(portrait => deleteGeneratedPortrait(portrait.id))
       
       // Update storage usage
-      setStorageUsage(calculateStorageUsage())
+      setStorageUsage(getStorageUsage().toFixed(2))
       
       // Show success message
       setShowSuccessMessage(true)
