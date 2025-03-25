@@ -1,9 +1,20 @@
 import Link from 'next/link'
-import { ArrowRightIcon, CameraIcon, SparklesIcon, AdjustmentsHorizontalIcon, DocumentCheckIcon } from '@heroicons/react/24/outline'
-import { useState } from 'react'
+import { ArrowRightIcon, CameraIcon, SparklesIcon, AdjustmentsHorizontalIcon, DocumentCheckIcon, CogIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { useState, useEffect } from 'react'
+import useStore from '@/store/useStore'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'upload' | 'features'>('upload')
+  const [storageUsage, setStorageUsage] = useState<string | null>(null)
+  const getStorageUsage = useStore(state => state.getStorageUsage)
+  const userPhotos = useStore(state => state.userPhotos)
+  const generatedPortraits = useStore(state => state.generatedPortraits)
+  
+  useEffect(() => {
+    // Get storage usage from the store
+    const usage = getStorageUsage()
+    setStorageUsage(usage.toFixed(2))
+  }, [userPhotos, generatedPortraits, getStorageUsage])
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -47,6 +58,41 @@ export default function Home() {
       <div className="flex-1 p-4 sm:p-8">
         {activeTab === 'upload' ? (
           <div className="max-w-md mx-auto">
+            {parseFloat(storageUsage || '0') > 4000 && (
+              <div className="card p-4 mb-6 border-l-4 border-amber-500 bg-amber-50">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-amber-400" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-amber-800">Storage Warning</h3>
+                    <div className="mt-1 text-sm text-amber-700">
+                      <p>Your storage is almost full ({storageUsage} KB used). Visit <Link href="/settings" className="font-medium underline">Settings</Link> to manage storage.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {parseFloat(storageUsage || '0') > 0 && parseFloat(storageUsage || '0') <= 4000 && (
+              <div className="card p-4 mb-6 bg-gray-50">
+                <div className="flex">
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-gray-700">Storage Usage</h3>
+                    <div className="mt-1 text-sm text-gray-600">
+                      <p>Current storage: {storageUsage} KB</p>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                        <div 
+                          className="bg-professional-blue h-1.5 rounded-full" 
+                          style={{ width: `${Math.min(100, (parseFloat(storageUsage || '0') / 5000) * 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="card p-6 mb-6">
               <div className="flex items-center mb-4">
                 <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mr-4">
@@ -76,10 +122,7 @@ export default function Home() {
                   <span>History</span>
                 </Link>
                 <Link href="/settings" className="flex items-center p-3 rounded hover:bg-gray-50 transition">
-                  <svg className="h-5 w-5 text-gray-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
+                  <CogIcon className="h-5 w-5 text-gray-500 mr-3" />
                   <span>Settings</span>
                 </Link>
               </nav>

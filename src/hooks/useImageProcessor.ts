@@ -1,9 +1,12 @@
 import { useState, useCallback } from 'react'
+import { autoOptimizeImage, estimateDataUrlSize } from '@/utils/imageUtils'
+import useStore from '@/store/useStore'
 
 interface ImageProcessorOptions {
   quality?: number
   maxWidth?: number
   maxHeight?: number
+  autoOptimize?: boolean
 }
 
 interface ProcessedImage {
@@ -12,11 +15,13 @@ interface ProcessedImage {
   height: number
   aspectRatio: number
   originalFile: File
+  sizeKB: number
 }
 
 export default function useImageProcessor() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const quality = useStore(state => state.settings.quality)
   
   const processImage = useCallback(async (
     file: File, 
@@ -32,7 +37,36 @@ export default function useImageProcessor() {
     
     try {
       // Create a data URL from the file
-      const dataUrl = await readFileAsDataURL(file)
+      let dataUrl = await readFileAsDataURL(file)
+      
+      // Get initial size estimate
+      const initialSizeKB = estimateDataUrlSize(dataUrl)
+      
+      // Auto-optimize based on quality setting and file size
+      const shouldOptimize = options.autoOptimize !== false
+      
+      if (shouldOptimize) {
+        // Apply different optimization levels based on quality setting
+        let optimizationQuality = 0.7; // Default for medium quality
+        let maxWidth = 800;
+        
+        if (quality === 'low') {
+          optimizationQuality = 0.5;
+          maxWidth = 600;
+        } else if (quality === 'high') {
+          optimizationQuality = 0.9;
+          maxWidth = 1200;
+        }
+        
+        // Override with options if provided
+        if (options.quality) optimizationQuality = options.quality;
+        if (options.maxWidth) maxWidth = options.maxWidth;
+        
+        // Only optimize if the image is large enough to warrant it
+        if (initialSizeKB > 100) {
+          dataUrl = await autoOptimizeImage(dataUrl);
+        }
+      }
       
       // Load the image to get dimensions
       const { width, height } = await getImageDimensions(dataUrl)
@@ -40,13 +74,17 @@ export default function useImageProcessor() {
       // Calculate aspect ratio
       const aspectRatio = width / height
       
+      // Get final size estimate
+      const sizeKB = estimateDataUrlSize(dataUrl)
+      
       // Return the processed image
       return {
         dataUrl,
         width,
         height,
         aspectRatio,
-        originalFile: file
+        originalFile: file,
+        sizeKB
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error processing image')
@@ -54,7 +92,7 @@ export default function useImageProcessor() {
     } finally {
       setIsProcessing(false)
     }
-  }, [])
+  }, [quality])
   
   // Helper function to read a file as a data URL
   const readFileAsDataURL = (file: File): Promise<string> => {

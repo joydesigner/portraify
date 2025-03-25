@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeftIcon, CheckIcon } from '@heroicons/react/24/outline'
-import { useRouter } from 'next/router'
+import { ArrowLeftIcon, TrashIcon, CheckIcon, InformationCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import useStore from '@/store/useStore'
 
 // Language options
 const languages = [
@@ -28,16 +28,68 @@ const themeOptions = [
 ]
 
 export default function Settings() {
-  const router = useRouter()
-  const [language, setLanguage] = useState('en')
-  const [quality, setQuality] = useState('medium')
-  const [theme, setTheme] = useState('system')
-  const [notifications, setNotifications] = useState(true)
-  const [saveOriginals, setSaveOriginals] = useState(true)
+  const settings = useStore(state => state.settings)
+  const updateSettings = useStore(state => state.updateSettings)
+  const userPhotos = useStore(state => state.userPhotos)
+  const generatedPortraits = useStore(state => state.generatedPortraits)
+  const cleanupStorage = useStore(state => state.cleanupStorage)
+  const deleteUserPhoto = useStore(state => state.deleteUserPhoto)
+  const deleteGeneratedPortrait = useStore(state => state.deleteGeneratedPortrait)
+  const getStorageUsage = useStore(state => state.getStorageUsage)
+  const clearAllData = useStore(state => state.clearAllData)
   
-  const handleSave = () => {
-    // In a real app, this would save settings to local storage or a backend
-    alert('Settings saved!')
+  const [maxPhotos, setMaxPhotos] = useState(settings.maxStoredPhotos)
+  const [maxPortraits, setMaxPortraits] = useState(settings.maxStoredPortraits)
+  const [quality, setQuality] = useState(settings.quality)
+  const [theme, setTheme] = useState(settings.theme)
+  const [saveOriginals, setSaveOriginals] = useState(settings.saveOriginals)
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  const [showOptimizationInfo, setShowOptimizationInfo] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('Settings Saved Successfully!')
+  
+  // Calculate storage usage
+  const [storageUsage, setStorageUsage] = useState('0')
+  
+  useEffect(() => {
+    // Get storage usage from the store
+    const usage = getStorageUsage()
+    setStorageUsage(usage.toFixed(2))
+  }, [userPhotos, generatedPortraits, getStorageUsage])
+  
+  const handleSaveSettings = () => {
+    updateSettings({
+      maxStoredPhotos: maxPhotos,
+      maxStoredPortraits: maxPortraits,
+      quality,
+      theme,
+      saveOriginals,
+    })
+    
+    // Clean up storage based on new settings
+    cleanupStorage()
+    
+    // Update storage usage
+    setStorageUsage(getStorageUsage().toFixed(2))
+    
+    // Show success message
+    setSuccessMessage('Settings Saved Successfully!')
+    setShowSuccessMessage(true)
+    setTimeout(() => setShowSuccessMessage(false), 3000)
+  }
+  
+  const handleClearAllData = () => {
+    if (confirm('Are you sure you want to clear all data? This action cannot be undone. All your photos and portraits will be permanently deleted.')) {
+      // Clear all data using the store function
+      clearAllData()
+      
+      // Update storage usage
+      setStorageUsage(getStorageUsage().toFixed(2))
+      
+      // Show success message
+      setSuccessMessage('All Data Cleared Successfully!')
+      setShowSuccessMessage(true)
+      setTimeout(() => setShowSuccessMessage(false), 3000)
+    }
   }
 
   return (
@@ -62,150 +114,209 @@ export default function Settings() {
           </Link>
           <h1 className="text-xl font-semibold ml-2">Settings</h1>
         </div>
-        <button 
-          onClick={handleSave}
-          className="text-professional-blue font-medium"
-        >
-          Save
-        </button>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 p-4">
-        <div className="space-y-6">
-          {/* Language Settings */}
-          <div className="card">
-            <h2 className="text-lg font-medium mb-4">Language</h2>
-            <div className="space-y-2">
-              {languages.map((lang) => (
-                <button
-                  key={lang.code}
-                  onClick={() => setLanguage(lang.code)}
-                  className="w-full flex items-center justify-between p-3 rounded hover:bg-gray-50"
-                >
-                  <span>{lang.name}</span>
-                  {language === lang.code && (
-                    <CheckIcon className="h-5 w-5 text-professional-blue" />
-                  )}
-                </button>
-              ))}
+      <main className="flex-1 p-4 flex flex-col">
+        {/* Success Message */}
+        {showSuccessMessage && (
+          <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+            <div className="flex items-center">
+              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3">
+                <CheckIcon className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-medium text-green-800">{successMessage}</h3>
+                <p className="text-sm text-green-600">Your changes have been applied</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Storage Section */}
+        <div className="card p-4 mb-6">
+          <h2 className="text-lg font-medium mb-4">Storage Management</h2>
+          
+          <div className="mb-4">
+            <p className="text-sm text-gray-600 mb-2">
+              Current storage usage: <span className="font-medium">{storageUsage} KB</span>
+            </p>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div 
+                className="bg-professional-blue h-2.5 rounded-full" 
+                style={{ width: `${Math.min(100, (parseFloat(storageUsage) / 5000) * 100)}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Browser storage limit is approximately 5MB
+            </p>
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Maximum stored photos ({maxPhotos})
+            </label>
+            <input
+              type="range"
+              min="1"
+              max="20"
+              value={maxPhotos}
+              onChange={(e) => setMaxPhotos(parseInt(e.target.value))}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+            />
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>Less storage (1)</span>
+              <span>More photos (20)</span>
             </div>
           </div>
           
-          {/* Quality Settings */}
-          <div className="card">
-            <h2 className="text-lg font-medium mb-4">Quality</h2>
-            <div className="space-y-2">
-              {qualitySettings.map((setting) => (
-                <button
-                  key={setting.id}
-                  onClick={() => setQuality(setting.id)}
-                  className={`w-full flex items-center justify-between p-3 rounded ${
-                    quality === setting.id ? 'bg-blue-50' : 'hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="text-left">
-                    <div className={quality === setting.id ? 'text-professional-blue font-medium' : ''}>
-                      {setting.name}
-                    </div>
-                    <div className="text-sm text-gray-500">{setting.description}</div>
-                  </div>
-                  {quality === setting.id && (
-                    <CheckIcon className="h-5 w-5 text-professional-blue" />
-                  )}
-                </button>
-              ))}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Maximum stored portraits ({maxPortraits})
+            </label>
+            <input
+              type="range"
+              min="1"
+              max="30"
+              value={maxPortraits}
+              onChange={(e) => setMaxPortraits(parseInt(e.target.value))}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+            />
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>Less storage (1)</span>
+              <span>More portraits (30)</span>
             </div>
           </div>
           
-          {/* Theme Settings */}
-          <div className="card">
-            <h2 className="text-lg font-medium mb-4">Theme</h2>
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Image Quality
+              </label>
+              <button 
+                onClick={() => setShowOptimizationInfo(!showOptimizationInfo)}
+                className="text-professional-blue"
+              >
+                <InformationCircleIcon className="h-5 w-5" />
+              </button>
+            </div>
+            
+            {showOptimizationInfo && (
+              <div className="mb-3 p-3 bg-blue-50 rounded-lg text-xs text-blue-700">
+                <p className="mb-1"><strong>Low:</strong> Smaller file size, faster uploads, uses less storage (600px, 50% quality)</p>
+                <p className="mb-1"><strong>Medium:</strong> Balanced quality and size (800px, 70% quality)</p>
+                <p><strong>High:</strong> Best quality, larger file size, uses more storage (1200px, 90% quality)</p>
+              </div>
+            )}
+            
             <div className="grid grid-cols-3 gap-2">
-              {themeOptions.map((option) => (
+              {['low', 'medium', 'high'].map((q) => (
                 <button
-                  key={option.id}
-                  onClick={() => setTheme(option.id)}
+                  key={q}
+                  onClick={() => setQuality(q as 'low' | 'medium' | 'high')}
                   className={`p-2 rounded border ${
-                    theme === option.id 
+                    quality === q 
                       ? 'border-professional-blue bg-blue-50 text-professional-blue' 
                       : 'border-gray-300 text-gray-700'
                   }`}
                 >
-                  {option.name}
+                  {q.charAt(0).toUpperCase() + q.slice(1)}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Higher quality uses more storage
+            </p>
+          </div>
+          
+          <div className="mb-4">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={saveOriginals}
+                onChange={(e) => setSaveOriginals(e.target.checked)}
+                className="h-4 w-4 text-professional-blue focus:ring-professional-blue border-gray-300 rounded"
+              />
+              <span className="ml-2 text-sm text-gray-700">Save original photos</span>
+            </label>
+            <p className="text-xs text-gray-500 mt-1 ml-6">
+              Disable to save storage space
+            </p>
+          </div>
+          
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-4">
+            <h3 className="text-sm font-medium text-amber-800 mb-1">Storage Optimization Tips</h3>
+            <ul className="text-xs text-amber-700 space-y-1">
+              <li>• Lower the image quality setting to reduce storage usage</li>
+              <li>• Reduce the maximum number of stored photos and portraits</li>
+              <li>• Disable "Save original photos" to only keep optimized versions</li>
+              <li>• Delete unused portraits from your history</li>
+            </ul>
+          </div>
+          
+          {/* Clear All Data Section */}
+          <div className="mt-8 border-t pt-6">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <ExclamationTriangleIcon className="h-5 w-5 text-red-600" />
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">Danger Zone</h3>
+                  <div className="mt-2 text-sm text-red-700">
+                    <p>Clearing all data will permanently delete all your photos and portraits. This action cannot be undone.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <button
+              onClick={handleClearAllData}
+              className="w-full flex items-center justify-center px-4 py-3 border border-red-300 text-red-700 bg-white hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <TrashIcon className="h-5 w-5 mr-2" />
+              Clear All Data
+            </button>
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              This will delete all your photos and portraits but keep your settings
+            </p>
+          </div>
+        </div>
+
+        {/* App Settings */}
+        <div className="card p-4 mb-6">
+          <h2 className="text-lg font-medium mb-4">App Settings</h2>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Theme
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {['light', 'dark', 'system'].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTheme(t as 'light' | 'dark' | 'system')}
+                  className={`p-2 rounded border ${
+                    theme === t 
+                      ? 'border-professional-blue bg-blue-50 text-professional-blue' 
+                      : 'border-gray-300 text-gray-700'
+                  }`}
+                >
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
                 </button>
               ))}
             </div>
           </div>
-          
-          {/* Other Settings */}
-          <div className="card">
-            <h2 className="text-lg font-medium mb-4">Other Settings</h2>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <label htmlFor="notifications" className="flex-1">
-                  <span className="block font-medium">Notifications</span>
-                  <span className="block text-sm text-gray-500">Get updates about new features</span>
-                </label>
-                <div className="ml-4">
-                  <button
-                    onClick={() => setNotifications(!notifications)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      notifications ? 'bg-professional-blue' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        notifications ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <label htmlFor="saveOriginals" className="flex-1">
-                  <span className="block font-medium">Save Original Photos</span>
-                  <span className="block text-sm text-gray-500">Keep uploaded photos in history</span>
-                </label>
-                <div className="ml-4">
-                  <button
-                    onClick={() => setSaveOriginals(!saveOriginals)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      saveOriginals ? 'bg-professional-blue' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        saveOriginals ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* About Section */}
-          <div className="card">
-            <h2 className="text-lg font-medium mb-2">About</h2>
-            <div className="text-sm text-gray-500">
-              <p>Portraify v1.0.0</p>
-              <p className="mt-1">© 2023 Portraify Inc.</p>
-            </div>
-            <div className="mt-4 space-y-2">
-              <Link href="#" className="block text-professional-blue">
-                Privacy Policy
-              </Link>
-              <Link href="#" className="block text-professional-blue">
-                Terms of Service
-              </Link>
-              <button className="block text-red-500">
-                Delete Account
-              </button>
-            </div>
-          </div>
+        </div>
+
+        {/* Save Button */}
+        <div className="sticky bottom-4 mt-auto">
+          <button
+            onClick={handleSaveSettings}
+            className="w-full bg-professional-blue text-white py-3 rounded-lg font-medium shadow-md hover:bg-blue-700 transition-colors"
+          >
+            Save Settings
+          </button>
         </div>
       </main>
     </div>
